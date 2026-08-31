@@ -32,9 +32,9 @@ if (!can_access_file($user, $file)) {
 }
 
 $stmt = $pdo->prepare(
-    'SELECT fd.*, u.name AS uploader_name
+    'SELECT fd.*, COALESCE(u.name, \'Müşteri\') AS uploader_name
      FROM file_documents fd
-     JOIN users u ON u.id = fd.uploaded_by
+     LEFT JOIN users u ON u.id = fd.uploaded_by
      WHERE fd.damage_file_id = ?
      ORDER BY fd.uploaded_at DESC'
 );

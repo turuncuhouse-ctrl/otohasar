@@ -1,0 +1,84 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/../../includes/portal.php';
+
+$error = '';
+$prefill = format_plate($_GET['plaka'] ?? '');
+
+if (!empty($_GET['t'])) {
+    if (portal_rate_limited()) {
+        $error = 'Çok fazla deneme. Lütfen bir süre sonra tekrar deneyin.';
+    } else {
+        $file = find_file_by_customer_token((string) $_GET['t']);
+        if ($file) {
+            portal_set_file((int) $file['id'], (string) $file['plate'], true);
+            header('Location: /musteri/dosya.php?id=' . (int) $file['id']);
+            exit;
+        }
+        $error = 'Bağlantı geçersiz veya süresi dolmuş. Plakanızla sorgulayabilirsiniz.';
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf($_POST['csrf'] ?? null)) {
+        $error = 'Oturum doğrulaması başarısız. Sayfayı yenileyip tekrar deneyin.';
+    } elseif (portal_rate_limited()) {
+        $error = 'Çok fazla deneme. Lütfen bir süre sonra tekrar deneyin.';
+    } else {
+        $plate = format_plate($_POST['plate'] ?? '');
+        if ($plate === '') {
+            $error = 'Plaka giriniz';
+        } else {
+            $files = find_files_by_plate($plate);
+            if (!$files) {
+                $error = 'Bu plakaya ait dosya bulunamadı';
+            } else {
+                portal_set_plate($plate);
+                if (count($files) === 1) {
+                    portal_set_file((int) $files[0]['id'], $plate);
+                    header('Location: /musteri/dosya.php?id=' . (int) $files[0]['id']);
+                } else {
+                    header('Location: /musteri/liste.php');
+                }
+                exit;
+            }
+        }
+    }
+}
+
+$pageTitle = 'Müşteri Sorgulama';
+?>
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <title><?= e($pageTitle) ?> — OTOHASAR</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body class="portal-body">
+<main class="portal-wrap">
+    <div class="portal-card">
+        <div class="portal-brand">
+            <h1>OTOHASAR</h1>
+            <p>Araç durumu ve eksik evrak</p>
+        </div>
+        <?php if ($error): ?>
+        <div class="alert alert-error"><?= e($error) ?></div>
+        <?php endif; ?>
+        <form method="post" class="login-form">
+            <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+            <div class="form-group">
+                <label for="plate">Plaka</label>
+                <input type="text" id="plate" name="plate" required class="form-input" autocomplete="off"
+                       placeholder="34 ABC 123" value="<?= e($prefill) ?>" style="text-transform:uppercase">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Sorgula</button>
+        </form>
+        <p class="portal-footnote">Evrak yükleme yalnızca servisinizin açık izin verdiği süre boyunca mümkündür.</p>
+        <a class="portal-staff-link" href="/login.php">Personel girişi</a>
+    </div>
+</main>
+</body>
+</html>

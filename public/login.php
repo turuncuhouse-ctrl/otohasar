@@ -44,6 +44,7 @@ require __DIR__ . '/../includes/header.php';
             </div>
             <button type="submit" class="btn btn-primary btn-block">Giriş Yap</button>
         </form>
+        <p class="portal-login-link"><a href="/musteri/">Müşteri: plaka ile durum sorgula</a></p>
         <div class="demo-chips">
             <p class="demo-label">Demo Hesaplar (şifre: 1234)</p>
             <div class="chip-group">

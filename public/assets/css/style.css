@@ -725,6 +725,81 @@ body {
 }
 .grant-banner-ok { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
 .grant-banner-warn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+
+/* Customer portal */
+.portal-body {
+    min-height: 100vh;
+    background:
+        radial-gradient(1200px 500px at 10% -10%, #1e3a5f 0%, transparent 55%),
+        linear-gradient(160deg, #0f172a 0%, #1e293b 40%, #0f172a 100%);
+}
+.portal-wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 2rem 1rem 3rem;
+}
+.portal-card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 1.5rem 1.25rem;
+    box-shadow: 0 12px 40px rgba(0,0,0,.25);
+}
+.portal-card-wide { max-width: none; }
+.portal-brand h1, .portal-brand-mini {
+    color: var(--navy);
+    letter-spacing: .04em;
+}
+.portal-brand h1 { font-size: 1.75rem; margin-bottom: .25rem; }
+.portal-brand p, .portal-sub, .portal-footnote {
+    color: var(--text-muted);
+    font-size: .875rem;
+}
+.portal-brand-mini { font-weight: 700; font-size: .75rem; margin-bottom: .5rem; opacity: .7; }
+.portal-file-title { font-size: 1.25rem; margin: .5rem 0 .25rem; }
+.portal-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1.25rem;
+}
+.portal-status-block {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+}
+.portal-status-block p { margin-top: .65rem; font-size: .875rem; color: var(--text-muted); }
+.portal-docs-title { font-size: 1rem; margin: 1.25rem 0 .75rem; }
+.portal-footnote { margin-top: 1rem; text-align: center; }
+.portal-staff-link, .portal-login-link {
+    display: block;
+    text-align: center;
+    margin-top: 1rem;
+    font-size: .8125rem;
+}
+.portal-staff-link { color: var(--text-muted); }
+.portal-login-link a { color: var(--accent); }
+.portal-file-list { display: flex; flex-direction: column; gap: .5rem; }
+.portal-file-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: .35rem .75rem;
+    padding: .85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    text-decoration: none;
+    color: inherit;
+    background: #fff;
+}
+.portal-file-row:hover { border-color: var(--accent); }
+.portal-file-meta {
+    grid-column: 1 / -1;
+    font-size: .8125rem;
+    color: var(--text-muted);
+}
+
 .file-header {
     display: flex;
     justify-content: space-between;

@@ -263,16 +263,16 @@ function can_grant_workshop_upload(array $user, array $file): bool
     return $role === 'advisor' && (int) $file['advisor_id'] === (int) $user['id'];
 }
 
-function workshop_upload_remaining_label(array $file): ?string
+function upload_remaining_label(?string $until): ?string
 {
-    if (!is_workshop_upload_granted($file)) {
+    if (!$until) {
         return null;
     }
-    $until = strtotime((string) $file['workshop_upload_until']);
-    if ($until === false) {
+    $ts = strtotime($until);
+    if ($ts === false || $ts <= time()) {
         return null;
     }
-    $sec = $until - time();
+    $sec = $ts - time();
     $hours = (int) floor($sec / 3600);
     $mins = (int) floor(($sec % 3600) / 60);
     if ($hours >= 24) {
@@ -286,6 +286,84 @@ function workshop_upload_remaining_label(array $file): ?string
     return $mins . 'dk kaldı';
 }
 
+function workshop_upload_remaining_label(array $file): ?string
+{
+    if (!is_workshop_upload_granted($file)) {
+        return null;
+    }
+    return upload_remaining_label((string) $file['workshop_upload_until']);
+}
+
+function is_customer_upload_granted(array $file): bool
+{
+    $until = $file['customer_upload_until'] ?? null;
+    if (!$until) {
+        return false;
+    }
+    $ts = strtotime((string) $until);
+    return $ts !== false && $ts > time();
+}
+
+function can_grant_customer_upload(array $user, array $file): bool
+{
+    return can_grant_workshop_upload($user, $file);
+}
+
+function customer_upload_remaining_label(array $file): ?string
+{
+    if (!is_customer_upload_granted($file)) {
+        return null;
+    }
+    return upload_remaining_label((string) $file['customer_upload_until']);
+}
+
+function customer_upload_categories(): array
+{
+    $all = category_labels();
+    unset($all['onarim']);
+    return $all;
+}
+
+function app_base_url(): string
+{
+    return rtrim((string) (app_config()['app']['url'] ?? ''), '/');
+}
+
+function customer_portal_url(?string $plate = null, ?string $token = null): string
+{
+    $base = app_base_url() . '/musteri/';
+    if ($token) {
+        return $base . '?t=' . rawurlencode($token);
+    }
+    if ($plate) {
+        return $base . '?plaka=' . rawurlencode(format_plate($plate));
+    }
+    return $base;
+}
+
+function wa_customer_docs_message(
+    string $customerName,
+    string $plate,
+    string $fileNumber,
+    string $portalUrl,
+    int $hours,
+    ?string $note = null
+): string {
+    $name = trim($customerName) !== '' ? trim($customerName) : 'Değerli müşterimiz';
+    $plate = format_plate($plate);
+    $label = $hours >= 24 && $hours % 24 === 0
+        ? ((int) ($hours / 24)) . ' gün'
+        : $hours . ' saat';
+    $extra = ($note !== null && trim($note) !== '')
+        ? "\nEksik evrak: " . trim($note)
+        : '';
+
+    return "Merhaba {$name},\n\n"
+        . "{$plate} plakalı aracınız (dosya {$fileNumber}) için eksik evrak yüklemeniz gerekiyor.{$extra}\n\n"
+        . "Durumu görmek ve fotoğraf yüklemek için:\n{$portalUrl}\n\n"
+        . "Yükleme izni: {$label}\n\nOTOHASAR";
+}
+
 function get_file_permissions(array $user, array $file): array
 {
     $role = $user['role'];
@@ -293,6 +371,7 @@ function get_file_permissions(array $user, array $file): array
     $isManager = $role === 'manager';
     $isOwner = (int) $file['advisor_id'] === (int) $user['id'];
     $grantActive = is_workshop_upload_granted($file);
+    $customerGrantActive = is_customer_upload_granted($file);
 
     $canEdit = $isManager || ($role === 'advisor' && $isOwner);
     $canUploadAll = $canEdit;
@@ -333,6 +412,13 @@ function get_file_permissions(array $user, array $file): array
         'workshop_upload_until'      => $file['workshop_upload_until'] ?? null,
         'workshop_upload_hours'      => isset($file['workshop_upload_hours']) ? (int) $file['workshop_upload_hours'] : null,
         'workshop_upload_remaining'  => workshop_upload_remaining_label($file),
+        'can_grant_customer_upload'  => can_grant_customer_upload($user, $file),
+        'customer_upload_active'     => $customerGrantActive,
+        'customer_upload_until'      => $file['customer_upload_until'] ?? null,
+        'customer_upload_hours'      => isset($file['customer_upload_hours']) ? (int) $file['customer_upload_hours'] : null,
+        'customer_upload_remaining'  => customer_upload_remaining_label($file),
+        'customer_upload_note'       => $file['customer_upload_note'] ?? null,
+        'customer_upload_token'      => $file['customer_upload_token'] ?? null,
     ];
 }
 

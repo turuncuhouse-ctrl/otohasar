@@ -33,8 +33,8 @@ if (!$file || !can_access_file($currentUser, $file)) {
 $permissions = get_file_permissions($currentUser, $file);
 
 $stmt = $pdo->prepare(
-    'SELECT fd.*, u.name AS uploader_name FROM file_documents fd
-     JOIN users u ON u.id = fd.uploaded_by WHERE fd.damage_file_id = ? ORDER BY fd.uploaded_at DESC'
+    'SELECT fd.*, COALESCE(u.name, \'Müşteri\') AS uploader_name FROM file_documents fd
+     LEFT JOIN users u ON u.id = fd.uploaded_by WHERE fd.damage_file_id = ? ORDER BY fd.uploaded_at DESC'
 );
 $stmt->execute([$fileId]);
 $documents = $stmt->fetchAll();
@@ -127,6 +127,53 @@ require __DIR__ . '/../includes/header.php';
             <?php else: ?>
             <div class="grant-banner grant-banner-warn">Hasar danışmanından süreli evrak yükleme izni bekleniyor (ör. 48 / 72 saat).</div>
             <?php endif; ?>
+        <?php endif; ?>
+
+        <?php if (!empty($permissions['can_grant_customer_upload'])): ?>
+        <div class="grant-panel" id="customerGrantPanel">
+            <div class="grant-panel-head">
+                <strong>Müşteri evrak izni</strong>
+                <?php if (!empty($permissions['customer_upload_active'])): ?>
+                <span class="grant-active">Aktif · <?= e($permissions['customer_upload_remaining'] ?? '') ?>
+                    (<?= date('d.m.Y H:i', strtotime((string)$permissions['customer_upload_until'])) ?>)</span>
+                <?php else: ?>
+                <span class="grant-idle">Kapalı — müşteri yükleme yapamaz</span>
+                <?php endif; ?>
+            </div>
+            <p class="grant-hint">Eksik evrak için müşteriye süre açın; WhatsApp ile portal linki gönderin. Plaka: <a href="<?= e(customer_portal_url($file['plate'])) ?>" target="_blank" rel="noopener">/musteri/</a></p>
+            <div class="form-group" style="margin-bottom:.75rem">
+                <label for="customerGrantNote">Eksik evrak notu (müşteriye görünür)</label>
+                <input type="text" id="customerGrantNote" class="form-input" maxlength="255"
+                       placeholder="Örn: ruhsat ve ehliyet fotoğrafı"
+                       value="<?= e($permissions['customer_upload_note'] ?? '') ?>">
+            </div>
+            <div class="grant-actions">
+                <?php foreach ([12 => '12s', 24 => '24s', 48 => '48s', 72 => '72s', 168 => '7 gün'] as $h => $lab): ?>
+                <button type="button" class="btn btn-sm btn-primary cust-grant-hours" data-hours="<?= (int)$h ?>"><?= e($lab) ?></button>
+                <?php endforeach; ?>
+                <?php if (!empty($permissions['customer_upload_active'])): ?>
+                <button type="button" class="btn btn-sm btn-ghost" id="custGrantRevoke">İptal et</button>
+                <?php
+                    $portalUrl = customer_portal_url($file['plate'], $permissions['customer_upload_token'] ?? null);
+                    $waInvite = wa_url(
+                        $file['customer_phone'] ?? null,
+                        wa_customer_docs_message(
+                            (string) $file['customer_name'],
+                            (string) $file['plate'],
+                            (string) $file['file_number'],
+                            $portalUrl,
+                            (int) ($permissions['customer_upload_hours'] ?? 48),
+                            $permissions['customer_upload_note'] ?? null
+                        )
+                    );
+                    if ($waInvite):
+                ?>
+                <a class="btn btn-sm btn-wa" href="<?= e($waInvite) ?>" target="_blank" rel="noopener"
+                   data-file-id="<?= (int)$fileId ?>" data-status="<?= e($file['status']) ?>">WhatsApp gönder</a>
+                <?php endif; ?>
+                <?php endif; ?>
+            </div>
+        </div>
         <?php endif; ?>
 
         <?php if ($permissions['can_upload']): ?>
@@ -411,6 +458,51 @@ require __DIR__ . '/../includes/header.php';
         revokeBtn.addEventListener('click', function() {
             if (!confirm('Atölye yükleme izni iptal edilsin mi?')) return;
             grantWorkshopUpload(0, true);
+        });
+    }
+
+    function grantCustomerUpload(hours, revoke) {
+        var formData = new FormData();
+        formData.append('csrf', csrf);
+        formData.append('damage_file_id', fileId);
+        if (revoke) {
+            formData.append('revoke', '1');
+        } else {
+            formData.append('hours', String(hours));
+            var noteEl = document.getElementById('customerGrantNote');
+            if (noteEl) formData.append('note', noteEl.value || '');
+        }
+        fetch('/api/customer_upload_grant.php', { method: 'POST', body: formData })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.ok) {
+                    if (revoke) {
+                        showToast('Müşteri izni iptal edildi', 'success');
+                        location.reload();
+                    } else {
+                        showToast('Müşteri yükleme izni açıldı', 'success');
+                        if (data.whatsapp) {
+                            showWaPrompt(data.whatsapp, data.plate);
+                            setTimeout(function() { location.reload(); }, 4000);
+                        } else {
+                            location.reload();
+                        }
+                    }
+                } else {
+                    showToast(data.error || 'Hata', 'error');
+                }
+            });
+    }
+    document.querySelectorAll('.cust-grant-hours').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            grantCustomerUpload(parseInt(this.dataset.hours, 10), false);
+        });
+    });
+    var custRevoke = document.getElementById('custGrantRevoke');
+    if (custRevoke) {
+        custRevoke.addEventListener('click', function() {
+            if (!confirm('Müşteri yükleme izni iptal edilsin mi?')) return;
+            grantCustomerUpload(0, true);
         });
     }
 
