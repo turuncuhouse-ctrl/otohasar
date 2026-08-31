@@ -123,21 +123,68 @@ body {
     background: var(--surface);
     border: 2px solid var(--border);
     border-radius: var(--radius);
-    padding: .75rem .5rem;
+    padding: .85rem .5rem .75rem;
     text-align: center;
     cursor: pointer;
-    min-height: 72px;
-    transition: border-color .15s, box-shadow .15s;
+    min-height: 78px;
+    transition: border-color .15s, box-shadow .15s, transform .15s;
+    position: relative;
+    overflow: hidden;
 }
-.stat-card:hover, .stat-card.active { border-color: var(--accent); box-shadow: var(--shadow); }
-.stat-num { display: block; font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
-.stat-label { display: block; font-size: .6875rem; font-weight: 600; color: var(--text-muted); margin-top: .2rem; }
-.stat-card.status-amber .stat-num { color: var(--status-amber); }
-.stat-card.status-violet .stat-num { color: var(--status-violet); }
-.stat-card.status-blue .stat-num { color: var(--status-blue); }
-.stat-card.status-cyan .stat-num { color: var(--status-cyan); }
-.stat-card.status-green .stat-num { color: var(--status-green); }
-.stat-card.status-slate .stat-num { color: var(--status-slate); }
+.stat-card::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 4px;
+    background: var(--navy);
+}
+.stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.stat-card.active { box-shadow: 0 0 0 2px rgba(15, 23, 42, .12); }
+.stat-num { display: block; font-size: 1.4rem; font-weight: 800; line-height: 1.2; color: var(--navy); }
+.stat-label { display: block; font-size: .6875rem; font-weight: 700; color: var(--text-muted); margin-top: .25rem; }
+
+/* Toplam */
+.stat-card.stat-total::before { background: var(--navy); }
+.stat-card.stat-total { background: #f8fafc; border-color: #cbd5e1; }
+.stat-card.stat-total .stat-num { color: var(--navy); }
+.stat-card.stat-total.active { border-color: var(--navy); background: #e2e8f0; }
+
+/* Durum renkleri — kenar, şerit, sayı, zemin */
+.stat-card.status-amber::before { background: var(--status-amber); }
+.stat-card.status-amber { background: #fffbeb; border-color: #fcd34d; }
+.stat-card.status-amber .stat-num { color: #b45309; }
+.stat-card.status-amber .stat-label { color: #92400e; }
+.stat-card.status-amber.active { border-color: var(--status-amber); box-shadow: 0 0 0 2px rgba(245, 158, 11, .25); }
+
+.stat-card.status-violet::before { background: var(--status-violet); }
+.stat-card.status-violet { background: #f5f3ff; border-color: #c4b5fd; }
+.stat-card.status-violet .stat-num { color: #6d28d9; }
+.stat-card.status-violet .stat-label { color: #5b21b6; }
+.stat-card.status-violet.active { border-color: var(--status-violet); box-shadow: 0 0 0 2px rgba(139, 92, 246, .25); }
+
+.stat-card.status-blue::before { background: var(--status-blue); }
+.stat-card.status-blue { background: #eff6ff; border-color: #93c5fd; }
+.stat-card.status-blue .stat-num { color: #1d4ed8; }
+.stat-card.status-blue .stat-label { color: #1e40af; }
+.stat-card.status-blue.active { border-color: var(--status-blue); box-shadow: 0 0 0 2px rgba(59, 130, 246, .25); }
+
+.stat-card.status-cyan::before { background: var(--status-cyan); }
+.stat-card.status-cyan { background: #ecfeff; border-color: #67e8f9; }
+.stat-card.status-cyan .stat-num { color: #0e7490; }
+.stat-card.status-cyan .stat-label { color: #155e75; }
+.stat-card.status-cyan.active { border-color: var(--status-cyan); box-shadow: 0 0 0 2px rgba(6, 182, 212, .25); }
+
+.stat-card.status-green::before { background: var(--status-green); }
+.stat-card.status-green { background: #f0fdf4; border-color: #86efac; }
+.stat-card.status-green .stat-num { color: #15803d; }
+.stat-card.status-green .stat-label { color: #166534; }
+.stat-card.status-green.active { border-color: var(--status-green); box-shadow: 0 0 0 2px rgba(34, 197, 94, .25); }
+
+.stat-card.status-slate::before { background: var(--status-slate); }
+.stat-card.status-slate { background: #f8fafc; border-color: #cbd5e1; }
+.stat-card.status-slate .stat-num { color: #475569; }
+.stat-card.status-slate .stat-label { color: #334155; }
+.stat-card.status-slate.active { border-color: var(--status-slate); box-shadow: 0 0 0 2px rgba(148, 163, 184, .3); }
 
 .view-toolbar {
     display: flex;

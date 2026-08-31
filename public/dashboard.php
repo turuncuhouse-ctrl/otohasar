@@ -128,7 +128,7 @@ require __DIR__ . '/../includes/header.php';
 <?php endif; ?>
 
 <div class="stat-grid" id="statGrid">
-    <button type="button" class="stat-card active" data-filter="all">
+    <button type="button" class="stat-card stat-total active" data-filter="all">
         <span class="stat-num"><?= count($files) ?></span>
         <span class="stat-label">Toplam</span>
     </button>
