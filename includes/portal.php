@@ -51,9 +51,7 @@ function portal_require_plate(): string
 function find_files_by_plate(string $plate): array
 {
     $stmt = db()->prepare(
-        'SELECT df.id, df.file_number, df.status, df.note, df.updated_at, df.created_at,
-                df.customer_upload_until, df.customer_upload_hours, df.customer_upload_note,
-                df.customer_upload_token,
+        'SELECT df.*,
                 v.plate, v.brand, v.model,
                 c.name AS customer_name, c.phone AS customer_phone
          FROM damage_files df
@@ -72,17 +70,21 @@ function find_file_by_customer_token(string $token): ?array
     if ($token === '' || strlen($token) < 16) {
         return null;
     }
-    $stmt = db()->prepare(
-        'SELECT df.*, v.plate, v.brand, v.model,
-                c.name AS customer_name, c.phone AS customer_phone
-         FROM damage_files df
-         JOIN vehicles v ON v.id = df.vehicle_id
-         JOIN customers c ON c.id = v.customer_id
-         WHERE df.customer_upload_token = ?'
-    );
-    $stmt->execute([$token]);
-    $row = $stmt->fetch();
-    return $row ?: null;
+    try {
+        $stmt = db()->prepare(
+            'SELECT df.*, v.plate, v.brand, v.model,
+                    c.name AS customer_name, c.phone AS customer_phone
+             FROM damage_files df
+             JOIN vehicles v ON v.id = df.vehicle_id
+             JOIN customers c ON c.id = v.customer_id
+             WHERE df.customer_upload_token = ?'
+        );
+        $stmt->execute([$token]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    } catch (Throwable $e) {
+        return null;
+    }
 }
 
 function find_portal_file(int $fileId, string $plate): ?array

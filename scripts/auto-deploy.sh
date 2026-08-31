@@ -41,6 +41,18 @@ docker exec -u root otohasar_php bash -lc 'php -m | grep -qi "^zip$" || (apt-get
 
 docker restart otohasar_php 2>/dev/null || sudo docker restart otohasar_php 2>/dev/null || true
 
+echo "[3c/4] Migrations..."
+sleep 5
+docker exec otohasar_php php /var/www/scripts/migrate_v2.php 2>/dev/null \
+  || sudo docker exec otohasar_php php /var/www/scripts/migrate_v2.php 2>/dev/null \
+  || true
+docker exec otohasar_php php /var/www/scripts/migrate_v3.php 2>/dev/null \
+  || sudo docker exec otohasar_php php /var/www/scripts/migrate_v3.php 2>/dev/null \
+  || true
+docker exec otohasar_php php /var/www/scripts/migrate_v4.php 2>/dev/null \
+  || sudo docker exec otohasar_php php /var/www/scripts/migrate_v4.php 2>/dev/null \
+  || true
+
 echo "[4/4] Kontrol..."
 sleep 3
 docker ps --filter name=otohasar_ --format 'table {{.Names}}\t{{.Status}}' 2>/dev/null \
