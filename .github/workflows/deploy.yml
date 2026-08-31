@@ -1,0 +1,25 @@
+name: Deploy OTOHASAR
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Sunucuya otomatik güncelle
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH ile git pull + restart
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -e
+            cd /mnt/1tb_disk/otohasar
+            chmod +x scripts/auto-deploy.sh
+            ./scripts/auto-deploy.sh ${{ github.ref_name }}

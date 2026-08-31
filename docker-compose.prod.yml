@@ -1,0 +1,67 @@
+# OTOHASAR — Docker Compose Production
+# Kurulum: ./scripts/docker-install.sh
+# Güncelleme: docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  db:
+    image: mariadb:10.11
+    container_name: otohasar_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ${DATA_ROOT}/data/mysql:/var/lib/mysql
+    networks:
+      - otohasar
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: otohasar-php:latest
+    container_name: otohasar_php
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      APP_URL: ${APP_URL}
+    volumes:
+      - ${DATA_ROOT}/data/uploads:/var/www/public/uploads
+      - ${DATA_ROOT}/data:/var/www/data
+    networks:
+      - otohasar
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    image: otohasar-nginx:latest
+    container_name: otohasar_nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-4080}:80"
+    volumes:
+      - ${DATA_ROOT}/data/uploads:/var/www/public/uploads:ro
+    networks:
+      - otohasar
+    depends_on:
+      - php
+
+networks:
+  otohasar:
+    driver: bridge

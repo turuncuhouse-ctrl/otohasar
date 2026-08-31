@@ -1,0 +1,25 @@
+{
+    "name": "OTOHASAR — Hasar Dosya Takip",
+    "short_name": "OTOHASAR",
+    "description": "Yetkili otomotiv servisi hasar dosya ve süreç takip sistemi",
+    "start_url": "/dashboard.php",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#0f172a",
+    "orientation": "any",
+    "lang": "tr",
+    "icons": [
+        {
+            "src": "/assets/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/assets/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+!.env.stack.example
+vendor/
+node_modules/
+*.log
+config/config.local.php
+deploy/env/.env
+deploy/SIFRELER.txt
+data/
+public/uploads/*
+!public/uploads/.gitkeep
+!public/uploads/seed/
+!public/uploads/seed/**

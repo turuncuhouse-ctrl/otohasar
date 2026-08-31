@@ -1,0 +1,75 @@
+services:
+  db:
+    image: mariadb:10.11
+    container_name: otohasar_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ySfnUpvGBqPbc1Cs2TW7NuJxw69R
+      MYSQL_DATABASE: otohasar
+      MYSQL_USER: otohasar
+      MYSQL_PASSWORD: WMLn3djz6QGq1VyFE2N5glDK
+    volumes:
+      - /mnt/1tb_disk/otohasar/data/mysql:/var/lib/mysql
+    networks:
+      - otohasar
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  php:
+    image: php:8.2-fpm-bookworm
+    container_name: otohasar_php
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: otohasar
+      DB_USER: otohasar
+      DB_PASSWORD: WMLn3djz6QGq1VyFE2N5glDK
+      APP_URL: https://otohasar.neciparmagan.net.tr
+    volumes:
+      - /mnt/1tb_disk/otohasar:/var/www
+      - /mnt/1tb_disk/otohasar/data/uploads:/var/www/public/uploads
+      - /mnt/1tb_disk/otohasar/data:/var/www/data
+    networks:
+      - otohasar
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - bash
+      - -c
+      - |
+        if [ ! -f /var/www/data/.php_ready ]; then
+          echo "PHP eklentileri kuruluyor (ilk sefer, 1-2 dk)..."
+          apt-get update -qq
+          apt-get install -y -qq default-mysql-client libpng-dev libjpeg-dev libwebp-dev libfreetype6-dev
+          docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
+          docker-php-ext-install -j$(nproc) pdo_mysql gd
+          touch /var/www/data/.php_ready
+          echo "PHP hazir."
+        fi
+        sed -i 's/\r$//' /var/www/docker/entrypoint.sh 2>/dev/null || true
+        exec bash /var/www/docker/entrypoint.sh php-fpm
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: otohasar_nginx
+    restart: unless-stopped
+    ports:
+      - "4080:80"
+    volumes:
+      - /mnt/1tb_disk/otohasar/docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /mnt/1tb_disk/otohasar/public:/var/www/public:ro
+      - /mnt/1tb_disk/otohasar/data/uploads:/var/www/public/uploads:ro
+    networks:
+      - otohasar
+    depends_on:
+      - php
+
+networks:
+  otohasar:
+    driver: bridge

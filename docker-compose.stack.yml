@@ -1,0 +1,88 @@
+# OTOHASAR — Docker Swarm Stack
+# Veriler: /mnt/1tb_disk/otohasar
+# Port: 4080
+#
+# Kurulum:
+#   scripts/stack-init.sh
+#   scripts/stack-deploy.sh
+#
+# Güncelleme:
+#   scripts/stack-deploy.sh
+#   veya GitHub Actions (push → otomatik deploy)
+
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ${DATA_ROOT}/data/mysql:/var/lib/mysql
+    networks:
+      - otohasar_net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      placement:
+        constraints:
+          - node.role == manager
+
+  php:
+    image: ${PHP_IMAGE:-otohasar-php:latest}
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      APP_URL: ${APP_URL}
+    volumes:
+      - ${DATA_ROOT}/app:/var/www
+      - ${DATA_ROOT}/data/uploads:/var/www/public/uploads
+      - ${DATA_ROOT}/data:/var/www/data
+    networks:
+      - otohasar_net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+      placement:
+        constraints:
+          - node.role == manager
+
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - target: 80
+        published: ${HTTP_PORT:-4080}
+        protocol: tcp
+        mode: host
+    volumes:
+      - ${DATA_ROOT}/app/public:/var/www/public:ro
+      - ${DATA_ROOT}/app/docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${DATA_ROOT}/data/uploads:/var/www/public/uploads:ro
+    networks:
+      - otohasar_net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == manager
+
+networks:
+  otohasar_net:
+    driver: overlay
+    attachable: true
