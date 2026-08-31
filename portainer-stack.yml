@@ -43,15 +43,6 @@ services:
       - bash
       - -c
       - |
-        if [ ! -f /var/www/data/.php_ready ]; then
-          echo "PHP eklentileri kuruluyor (ilk sefer, 1-2 dk)..."
-          apt-get update -qq
-          apt-get install -y -qq default-mysql-client libpng-dev libjpeg-dev libwebp-dev libfreetype6-dev
-          docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
-          docker-php-ext-install -j$(nproc) pdo_mysql gd
-          touch /var/www/data/.php_ready
-          echo "PHP hazir."
-        fi
         sed -i 's/\r$//' /var/www/docker/entrypoint.sh 2>/dev/null || true
         exec bash /var/www/docker/entrypoint.sh php-fpm
 

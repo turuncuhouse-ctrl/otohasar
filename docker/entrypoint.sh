@@ -3,10 +3,33 @@ set -e
 
 INIT_MARKER="/var/www/data/.initialized"
 
+# Ensure required tools/extensions exist (container recreate-safe)
+if ! php -m 2>/dev/null | grep -qi pdo_mysql; then
+    echo "PHP eklentileri eksik, kuruluyor..."
+    apt-get update -qq
+    apt-get install -y -qq default-mysql-client libpng-dev libjpeg-dev libwebp-dev libfreetype6-dev
+    docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
+    docker-php-ext-install -j"$(nproc)" pdo_mysql gd
+    echo "PHP eklentileri kuruldu."
+fi
+
+if ! command -v mysqladmin >/dev/null 2>&1; then
+    apt-get update -qq
+    apt-get install -y -qq default-mysql-client
+fi
+
 echo "Waiting for database..."
+tries=0
 until mysqladmin ping -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASSWORD" --silent 2>/dev/null; do
+    tries=$((tries + 1))
+    if [ "$tries" -ge 60 ]; then
+        echo "HATA: Veritabanina 2 dakikada baglanilamadi."
+        echo "DB_HOST=$DB_HOST DB_USER=$DB_USER DB_NAME=$DB_NAME"
+        exit 1
+    fi
     sleep 2
 done
+echo "Database OK."
 
 if [ ! -f "$INIT_MARKER" ]; then
     echo "First run - initializing database and seed data..."
@@ -27,6 +50,7 @@ else
 fi
 
 echo "Setting upload permissions..."
+mkdir -p /var/www/public/uploads
 chown -R www-data:www-data /var/www/public/uploads
 chmod -R 755 /var/www/public/uploads
 
