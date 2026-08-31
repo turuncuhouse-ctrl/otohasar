@@ -33,8 +33,9 @@ $currentUser = $currentUser ?? null;
             <a href="/new-file.php" class="nav-link<?= ($activeNav ?? '') === 'new-file' ? ' active' : '' ?>">Yeni Dosya</a>
             <?php endif; ?>
             <a href="/search.php" class="nav-link<?= ($activeNav ?? '') === 'search' ? ' active' : '' ?>">Ara</a>
-            <?php if ($currentUser['role'] === 'manager'): ?>
+            <?php if ($currentUser['role'] === 'manager' || $currentUser['role'] === 'admin'): ?>
             <a href="/reports.php" class="nav-link<?= ($activeNav ?? '') === 'reports' ? ' active' : '' ?>">Raporlar</a>
+            <a href="/admin/" class="nav-link<?= ($activeNav ?? '') === 'admin' ? ' active' : '' ?>">Yönetim</a>
             <?php endif; ?>
             <a href="/logout.php" class="nav-link nav-logout">Çıkış</a>
         </nav>

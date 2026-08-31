@@ -49,6 +49,17 @@ else
     php /var/www/scripts/setup.php 2>/dev/null || true
 fi
 
+echo "Running migrations..."
+php /var/www/scripts/migrate_v2.php || true
+
+# ZIP extension for document downloads
+if ! php -m 2>/dev/null | grep -qi zip; then
+    echo "Installing php-zip..."
+    apt-get update -qq
+    apt-get install -y -qq libzip-dev
+    docker-php-ext-install zip
+fi
+
 echo "Setting upload permissions..."
 mkdir -p /var/www/public/uploads
 chown -R www-data:www-data /var/www/public/uploads

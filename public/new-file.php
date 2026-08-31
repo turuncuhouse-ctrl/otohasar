@@ -76,7 +76,21 @@ require __DIR__ . '/../includes/header.php';
             <hr class="form-divider">
             <div class="form-group">
                 <label for="insurance_company">Sigorta Şirketi</label>
+                <?php $insurers = insurance_companies(true); ?>
+                <?php if ($insurers): ?>
+                <select id="insurance_company" name="insurance_company" class="form-input">
+                    <option value="">Seçiniz</option>
+                    <?php foreach ($insurers as $ins): ?>
+                    <option value="<?= e($ins['name']) ?>"
+                        data-labor="<?= e((string)$ins['labor_discount']) ?>"
+                        data-parts="<?= e((string)$ins['parts_discount']) ?>">
+                        <?= e($ins['name']) ?> (İşçilik %<?= e((string)$ins['labor_discount']) ?> / Parça %<?= e((string)$ins['parts_discount']) ?>)
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+                <?php else: ?>
                 <input type="text" id="insurance_company" name="insurance_company" class="form-input">
+                <?php endif; ?>
             </div>
             <div class="form-row">
                 <div class="form-group">

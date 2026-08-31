@@ -1,4 +1,4 @@
-const CACHE_NAME = 'otohasar-shell-v3';
+const CACHE_NAME = 'otohasar-shell-v4';
 const SHELL_ASSETS = [
     '/',
     '/dashboard.php',

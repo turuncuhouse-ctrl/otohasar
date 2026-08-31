@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/db.php';
+
 function e(?string $value): string
 {
     return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -31,7 +33,11 @@ function app_config(): array
 
 function status_labels(): array
 {
-    return [
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $defaults = [
         'evrak_bekliyor' => 'Evrak Bekliyor',
         'eksperde'       => 'Eksperde',
         'parca_bekliyor' => 'Parça Bekliyor',
@@ -39,11 +45,31 @@ function status_labels(): array
         'teslime_hazir'  => 'Teslime Hazır',
         'tamamlandi'     => 'Tamamlandı',
     ];
+    try {
+        $rows = db()->query(
+            'SELECT code, label FROM app_statuses WHERE is_active = 1 ORDER BY sort_order, id'
+        )->fetchAll();
+        if ($rows) {
+            $cache = [];
+            foreach ($rows as $r) {
+                $cache[$r['code']] = $r['label'];
+            }
+            return $cache;
+        }
+    } catch (Throwable $e) {
+        // table may not exist yet
+    }
+    $cache = $defaults;
+    return $cache;
 }
 
 function status_colors(): array
 {
-    return [
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $defaults = [
         'evrak_bekliyor' => 'status-amber',
         'eksperde'       => 'status-violet',
         'parca_bekliyor' => 'status-blue',
@@ -51,11 +77,30 @@ function status_colors(): array
         'teslime_hazir'  => 'status-green',
         'tamamlandi'     => 'status-slate',
     ];
+    try {
+        $rows = db()->query(
+            'SELECT code, color_class FROM app_statuses WHERE is_active = 1 ORDER BY sort_order, id'
+        )->fetchAll();
+        if ($rows) {
+            $cache = [];
+            foreach ($rows as $r) {
+                $cache[$r['code']] = $r['color_class'] ?: 'status-slate';
+            }
+            return $cache;
+        }
+    } catch (Throwable $e) {
+    }
+    $cache = $defaults;
+    return $cache;
 }
 
 function category_labels(): array
 {
-    return [
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $defaults = [
         'ruhsat'     => 'Ruhsat',
         'ehliyet'    => 'Ehliyet',
         'tutanak'    => 'Tutanak',
@@ -64,15 +109,69 @@ function category_labels(): array
         'onarim'     => 'Onarım',
         'diger'      => 'Diğer',
     ];
+    try {
+        $rows = db()->query(
+            'SELECT code, label FROM app_categories WHERE is_active = 1 ORDER BY sort_order, id'
+        )->fetchAll();
+        if ($rows) {
+            $cache = [];
+            foreach ($rows as $r) {
+                $cache[$r['code']] = $r['label'];
+            }
+            return $cache;
+        }
+    } catch (Throwable $e) {
+    }
+    $cache = $defaults;
+    return $cache;
 }
 
 function role_labels(): array
 {
     return [
+        'admin'    => 'Yönetici (Admin)',
         'advisor'  => 'Hasar Danışmanı',
         'manager'  => 'Servis Yöneticisi',
         'workshop' => 'Atölye Personeli',
     ];
+}
+
+function is_admin_user(array $user): bool
+{
+    return in_array($user['role'], ['admin', 'manager'], true);
+}
+
+function insurance_companies(bool $activeOnly = true): array
+{
+    try {
+        $sql = 'SELECT * FROM insurance_companies';
+        if ($activeOnly) {
+            $sql .= ' WHERE is_active = 1';
+        }
+        $sql .= ' ORDER BY name';
+        return db()->query($sql)->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function slugify_code(string $label): string
+{
+    $map = [
+        'ç' => 'c', 'Ç' => 'c', 'ğ' => 'g', 'Ğ' => 'g', 'ı' => 'i', 'İ' => 'i',
+        'ö' => 'o', 'Ö' => 'o', 'ş' => 's', 'Ş' => 's', 'ü' => 'u', 'Ü' => 'u',
+    ];
+    $s = strtr($label, $map);
+    $s = strtolower($s);
+    $s = preg_replace('/[^a-z0-9]+/', '_', $s) ?? '';
+    $s = trim($s, '_');
+    return $s !== '' ? $s : 'item_' . bin2hex(random_bytes(3));
+}
+
+function safe_zip_name(string $name): string
+{
+    $name = preg_replace('/[\\\\\/\:\*\?\"\<\>\|]+/', '-', $name) ?? 'dosya';
+    return trim($name) !== '' ? $name : 'dosya';
 }
 
 function generate_file_number(PDO $pdo): string
@@ -145,7 +244,7 @@ function get_file_permissions(array $user, array $file): array
     $role = $user['role'];
     $status = $file['status'];
     $isOwner = (int) $file['advisor_id'] === (int) $user['id'];
-    $isManager = $role === 'manager';
+    $isManager = $role === 'manager' || $role === 'admin';
 
     $canEdit = $isManager || ($role === 'advisor' && $isOwner);
     $canUploadAll = $canEdit;
@@ -153,10 +252,15 @@ function get_file_permissions(array $user, array $file): array
     $canUpload = $canUploadAll || $canUploadOnarim;
 
     $allowedCategories = [];
-    if ($canUploadAll) {
+        if ($canUploadAll) {
         $allowedCategories = array_keys(category_labels());
+        if ($role === 'workshop') {
+            // workshop only onarım when already filtered by canUploadOnarim
+        }
     } elseif ($canUploadOnarim) {
-        $allowedCategories = ['onarim'];
+        $allowedCategories = array_key_exists('onarim', category_labels())
+            ? ['onarim']
+            : array_keys(category_labels());
     }
 
     $allowedStatuses = [];

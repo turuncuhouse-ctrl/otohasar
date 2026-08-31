@@ -12,9 +12,12 @@
     <a href="/search.php" class="<?= ($activeNav ?? '') === 'search' ? 'active' : '' ?>">
         <span>Ara</span>
     </a>
-    <?php if ($currentUser['role'] === 'manager'): ?>
+    <?php if ($currentUser['role'] === 'manager' || $currentUser['role'] === 'admin'): ?>
     <a href="/reports.php" class="<?= ($activeNav ?? '') === 'reports' ? 'active' : '' ?>">
         <span>Rapor</span>
+    </a>
+    <a href="/admin/" class="<?= ($activeNav ?? '') === 'admin' ? 'active' : '' ?>">
+        <span>Yönetim</span>
     </a>
     <?php endif; ?>
 </nav>
