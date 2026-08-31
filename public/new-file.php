@@ -3,8 +3,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 
 $currentUser = require_auth();
-if ($currentUser['role'] === 'workshop') {
-    header('Location: /dashboard.php');
+if ($currentUser['role'] === 'workshop' || $currentUser['role'] === 'admin') {
+    header('Location: ' . ($currentUser['role'] === 'admin' ? '/admin/' : '/dashboard.php'));
     exit;
 }
 

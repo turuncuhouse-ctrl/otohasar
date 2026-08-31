@@ -4,6 +4,7 @@ if (!isset($pageTitle)) {
     $pageTitle = 'OTOHASAR';
 }
 $currentUser = $currentUser ?? null;
+$role = $currentUser['role'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="tr">
@@ -29,18 +30,20 @@ $currentUser = $currentUser ?? null;
         <a href="/dashboard.php" class="logo">OTOHASAR</a>
         <nav class="nav-links" id="mainNav">
             <a href="/dashboard.php" class="nav-link<?= ($activeNav ?? '') === 'dashboard' ? ' active' : '' ?>">Pano</a>
-            <?php if ($currentUser['role'] !== 'workshop'): ?>
+            <?php if (!in_array($role, ['workshop', 'admin'], true)): ?>
             <a href="/new-file.php" class="nav-link<?= ($activeNav ?? '') === 'new-file' ? ' active' : '' ?>">Yeni Dosya</a>
             <?php endif; ?>
             <a href="/search.php" class="nav-link<?= ($activeNav ?? '') === 'search' ? ' active' : '' ?>">Ara</a>
-            <?php if ($currentUser['role'] === 'manager' || $currentUser['role'] === 'admin'): ?>
+            <?php if ($role === 'manager'): ?>
             <a href="/reports.php" class="nav-link<?= ($activeNav ?? '') === 'reports' ? ' active' : '' ?>">Raporlar</a>
-            <a href="/admin/" class="nav-link<?= ($activeNav ?? '') === 'admin' ? ' active' : '' ?>">Yönetim</a>
+            <?php endif; ?>
+            <?php if ($role === 'admin'): ?>
+            <a href="/admin/" class="nav-link<?= ($activeNav ?? '') === 'admin' ? ' active' : '' ?>">Sistem Ayarları</a>
             <?php endif; ?>
             <a href="/logout.php" class="nav-link nav-logout">Çıkış</a>
         </nav>
         <div class="topbar-user">
-            <span class="user-badge role-<?= e($currentUser['role']) ?>"><?= e(role_labels()[$currentUser['role']] ?? $currentUser['role']) ?></span>
+            <span class="user-badge role-<?= e($role) ?>"><?= e(role_labels()[$role] ?? $role) ?></span>
             <span class="user-name"><?= e($currentUser['name']) ?></span>
             <a href="/logout.php" class="btn btn-sm btn-ghost logout-desk">Çıkış</a>
         </div>

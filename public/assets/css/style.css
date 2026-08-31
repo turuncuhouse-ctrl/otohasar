@@ -76,6 +76,7 @@ body {
 .role-advisor { background: #1e40af; color: #bfdbfe; }
 .role-manager { background: #7c3aed; color: #ddd6fe; }
 .role-workshop { background: #0e7490; color: #a5f3fc; }
+.role-admin { background: #b45309; color: #fde68a; }
 .nav-logout { display: none; }
 .hidden { display: none !important; }
 .is-hidden { display: none !important; }

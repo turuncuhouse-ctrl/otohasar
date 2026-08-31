@@ -19,8 +19,8 @@ $policyNo       = trim($_POST['policy_no'] ?? '');
 $claimNo        = trim($_POST['claim_no'] ?? '');
 $note           = trim($_POST['note'] ?? '');
 
-if ($user['role'] === 'workshop') {
-    json_error('Atölye personeli dosya açamaz', 403);
+if ($user['role'] === 'workshop' || $user['role'] === 'admin') {
+    json_error('Bu rol dosya açamaz', 403);
 }
 
 if ($plate === '' || $brand === '' || $model === '' || $customerName === '' || $tcVkn === '') {

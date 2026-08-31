@@ -47,10 +47,10 @@ require __DIR__ . '/../includes/header.php';
         <div class="demo-chips">
             <p class="demo-label">Demo Hesaplar (şifre: 1234)</p>
             <div class="chip-group">
-                <button type="button" class="chip" data-user="admindemo">Admin</button>
+                <button type="button" class="chip" data-user="admindemo">Admin (sistem ayarları)</button>
+                <button type="button" class="chip" data-user="yoneticidemo">Yönetici (dosyalar)</button>
                 <button type="button" class="chip" data-user="hasardanismandemo">Danışman — Ahmet</button>
                 <button type="button" class="chip" data-user="hasardanisman2demo">Danışman — Burak</button>
-                <button type="button" class="chip" data-user="yoneticidemo">Yönetici — Elif</button>
                 <button type="button" class="chip" data-user="atolyedemo">Atölye — Mehmet</button>
             </div>
         </div>

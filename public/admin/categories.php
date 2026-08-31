@@ -63,7 +63,7 @@ require __DIR__ . '/../../includes/header.php';
 
 <div class="page-header">
     <h1>Evrak Kategorileri</h1>
-    <a href="/admin/" class="btn btn-ghost btn-sm">← Yönetim</a>
+    <a href="/admin/" class="btn btn-ghost btn-sm">← Sistem Ayarları</a>
 </div>
 <?php if ($message): ?><div class="alert alert-success"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>

@@ -31,7 +31,10 @@ require __DIR__ . '/../../includes/header.php';
     <h1>Yönetim Paneli</h1>
 </div>
 
-<p class="dash-sub" style="margin-bottom:1.25rem">Sistem ayarları, kullanıcılar ve anlaşmalı sigorta şirketleri.</p>
+<p class="dash-sub" style="margin-bottom:1.25rem">
+    Sistem ayarları: kullanıcılar, evrak kategorileri, dosya durumları ve anlaşmalı sigorta şirketleri.
+    <br>Dosya / hasar işlemleri için <strong>Servis Yöneticisi</strong> hesabını kullanın.
+</p>
 
 <div class="admin-grid">
     <a class="admin-card" href="/admin/users.php">

@@ -1,10 +1,12 @@
 </main>
-<?php if ($currentUser): ?>
+<?php if ($currentUser):
+    $role = $currentUser['role'] ?? '';
+?>
 <nav class="bottom-nav" aria-label="Mobil menü">
     <a href="/dashboard.php" class="<?= ($activeNav ?? '') === 'dashboard' ? 'active' : '' ?>">
         <span>Pano</span>
     </a>
-    <?php if ($currentUser['role'] !== 'workshop'): ?>
+    <?php if (!in_array($role, ['workshop', 'admin'], true)): ?>
     <a href="/new-file.php" class="<?= ($activeNav ?? '') === 'new-file' ? 'active' : '' ?>">
         <span>Yeni</span>
     </a>
@@ -12,12 +14,14 @@
     <a href="/search.php" class="<?= ($activeNav ?? '') === 'search' ? 'active' : '' ?>">
         <span>Ara</span>
     </a>
-    <?php if ($currentUser['role'] === 'manager' || $currentUser['role'] === 'admin'): ?>
+    <?php if ($role === 'manager'): ?>
     <a href="/reports.php" class="<?= ($activeNav ?? '') === 'reports' ? 'active' : '' ?>">
         <span>Rapor</span>
     </a>
+    <?php endif; ?>
+    <?php if ($role === 'admin'): ?>
     <a href="/admin/" class="<?= ($activeNav ?? '') === 'admin' ? 'active' : '' ?>">
-        <span>Yönetim</span>
+        <span>Ayarlar</span>
     </a>
     <?php endif; ?>
 </nav>

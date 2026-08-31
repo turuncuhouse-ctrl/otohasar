@@ -129,16 +129,21 @@ function category_labels(): array
 function role_labels(): array
 {
     return [
-        'admin'    => 'Yönetici (Admin)',
-        'advisor'  => 'Hasar Danışmanı',
+        'admin'    => 'Sistem Admin',
         'manager'  => 'Servis Yöneticisi',
+        'advisor'  => 'Hasar Danışmanı',
         'workshop' => 'Atölye Personeli',
     ];
 }
 
 function is_admin_user(array $user): bool
 {
-    return in_array($user['role'], ['admin', 'manager'], true);
+    return ($user['role'] ?? '') === 'admin';
+}
+
+function is_manager_user(array $user): bool
+{
+    return ($user['role'] ?? '') === 'manager';
 }
 
 function insurance_companies(bool $activeOnly = true): array
@@ -243,8 +248,8 @@ function get_file_permissions(array $user, array $file): array
 {
     $role = $user['role'];
     $status = $file['status'];
+    $isManager = $role === 'manager';
     $isOwner = (int) $file['advisor_id'] === (int) $user['id'];
-    $isManager = $role === 'manager' || $role === 'admin';
 
     $canEdit = $isManager || ($role === 'advisor' && $isOwner);
     $canUploadAll = $canEdit;
@@ -299,7 +304,7 @@ function can_upload_category(array $user, array $file, string $category): bool
 
 function can_access_file(array $user, array $file): bool
 {
-    return in_array($user['role'], ['advisor', 'manager', 'workshop'], true);
+    return in_array($user['role'], ['advisor', 'manager', 'workshop', 'admin'], true);
 }
 
 function format_plate(string $plate): string
