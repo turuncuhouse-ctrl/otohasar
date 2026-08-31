@@ -52,13 +52,18 @@ fi
 echo "Running migrations..."
 php /var/www/scripts/migrate_v2.php || true
 
-# ZIP extension for document downloads
-if ! php -m 2>/dev/null | grep -qi zip; then
+# ZIP extension for document downloads (required)
+ensure_zip() {
+    if php -m 2>/dev/null | grep -qi '^zip$'; then
+        return 0
+    fi
     echo "Installing php-zip..."
     apt-get update -qq
-    apt-get install -y -qq libzip-dev
+    apt-get install -y -qq libzip-dev zlib1g-dev
+    docker-php-ext-configure zip
     docker-php-ext-install zip
-fi
+}
+ensure_zip
 
 echo "Setting upload permissions..."
 mkdir -p /var/www/public/uploads
@@ -66,4 +71,5 @@ chown -R www-data:www-data /var/www/public/uploads
 chmod -R 755 /var/www/public/uploads
 
 echo "OTOHASAR ready!"
+php -m | grep -i zip || echo "UYARI: zip eklentisi yuklenemedi"
 exec "$@"
