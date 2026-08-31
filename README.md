@@ -38,6 +38,10 @@ chmod +x scripts/*.sh
 
 Erişim: **http://SUNUCU_IP:4080** — `hasardanismandemo` / `1234`
 
+## GitHub otomatik güncelleme
+
+Push → Actions → sunucuda `git pull` + container restart. Rehber: **[GITHUB-DEPLOY.md](GITHUB-DEPLOY.md)**
+
 ## Manuel Kurulum
 
 ```bash
