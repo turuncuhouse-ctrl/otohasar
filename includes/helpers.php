@@ -244,24 +244,65 @@ function validate_upload_mime(string $tmpPath, string $originalName): ?array
     return ['mime' => $mime, 'ext' => $normalizedExt];
 }
 
+function is_workshop_upload_granted(array $file): bool
+{
+    $until = $file['workshop_upload_until'] ?? null;
+    if (!$until) {
+        return false;
+    }
+    $ts = strtotime((string) $until);
+    return $ts !== false && $ts > time();
+}
+
+function can_grant_workshop_upload(array $user, array $file): bool
+{
+    $role = $user['role'] ?? '';
+    if ($role === 'manager') {
+        return true;
+    }
+    return $role === 'advisor' && (int) $file['advisor_id'] === (int) $user['id'];
+}
+
+function workshop_upload_remaining_label(array $file): ?string
+{
+    if (!is_workshop_upload_granted($file)) {
+        return null;
+    }
+    $until = strtotime((string) $file['workshop_upload_until']);
+    if ($until === false) {
+        return null;
+    }
+    $sec = $until - time();
+    $hours = (int) floor($sec / 3600);
+    $mins = (int) floor(($sec % 3600) / 60);
+    if ($hours >= 24) {
+        $days = (int) floor($hours / 24);
+        $remH = $hours % 24;
+        return $days . 'g ' . $remH . 's kaldı';
+    }
+    if ($hours > 0) {
+        return $hours . 's ' . $mins . 'dk kaldı';
+    }
+    return $mins . 'dk kaldı';
+}
+
 function get_file_permissions(array $user, array $file): array
 {
     $role = $user['role'];
     $status = $file['status'];
     $isManager = $role === 'manager';
     $isOwner = (int) $file['advisor_id'] === (int) $user['id'];
+    $grantActive = is_workshop_upload_granted($file);
 
     $canEdit = $isManager || ($role === 'advisor' && $isOwner);
     $canUploadAll = $canEdit;
-    $canUploadOnarim = $role === 'workshop' && $status === 'onarimda';
+    // Atölye: yalnızca danışman/yönetici süreli izin verdiyse ve dosya atölyede ise
+    $canUploadOnarim = $role === 'workshop' && $status === 'onarimda' && $grantActive;
     $canUpload = $canUploadAll || $canUploadOnarim;
 
     $allowedCategories = [];
-        if ($canUploadAll) {
+    if ($canUploadAll) {
         $allowedCategories = array_keys(category_labels());
-        if ($role === 'workshop') {
-            // workshop only onarım when already filtered by canUploadOnarim
-        }
     } elseif ($canUploadOnarim) {
         $allowedCategories = array_key_exists('onarim', category_labels())
             ? ['onarim']
@@ -280,13 +321,18 @@ function get_file_permissions(array $user, array $file): array
     }
 
     return [
-        'can_view'             => true,
-        'can_edit'             => $canEdit,
-        'can_upload'           => $canUpload,
-        'can_delete_docs'      => $canEdit,
-        'can_change_status'    => !empty($allowedStatuses),
-        'allowed_categories'   => $allowedCategories,
-        'allowed_statuses'     => $allowedStatuses,
+        'can_view'                   => true,
+        'can_edit'                   => $canEdit,
+        'can_upload'                 => $canUpload,
+        'can_delete_docs'            => $canEdit,
+        'can_change_status'          => !empty($allowedStatuses),
+        'allowed_categories'         => $allowedCategories,
+        'allowed_statuses'           => $allowedStatuses,
+        'can_grant_workshop_upload'  => can_grant_workshop_upload($user, $file),
+        'workshop_upload_active'     => $grantActive,
+        'workshop_upload_until'      => $file['workshop_upload_until'] ?? null,
+        'workshop_upload_hours'      => isset($file['workshop_upload_hours']) ? (int) $file['workshop_upload_hours'] : null,
+        'workshop_upload_remaining'  => workshop_upload_remaining_label($file),
     ];
 }
 

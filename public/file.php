@@ -96,6 +96,38 @@ require __DIR__ . '/../includes/header.php';
     </div>
 
     <div class="tab-content active" id="tab-docs">
+        <?php if (!empty($permissions['can_grant_workshop_upload'])): ?>
+        <div class="grant-panel" id="workshopGrantPanel">
+            <div class="grant-panel-head">
+                <strong>Atölye evrak izni</strong>
+                <?php if (!empty($permissions['workshop_upload_active'])): ?>
+                <span class="grant-active">Aktif · <?= e($permissions['workshop_upload_remaining'] ?? '') ?>
+                    (<?= date('d.m.Y H:i', strtotime((string)$permissions['workshop_upload_until'])) ?>)</span>
+                <?php else: ?>
+                <span class="grant-idle">İzin yok — atölye yükleme yapamaz</span>
+                <?php endif; ?>
+            </div>
+            <p class="grant-hint">Dosya atölyeye geldiğinde hasar danışmanı / yönetici süre tanımlar. Süre bitince yükleme kapanır.</p>
+            <div class="grant-actions">
+                <?php foreach ([12 => '12s', 24 => '24s', 48 => '48s', 72 => '72s', 168 => '7 gün'] as $h => $lab): ?>
+                <button type="button" class="btn btn-sm btn-primary grant-hours" data-hours="<?= (int)$h ?>"><?= e($lab) ?></button>
+                <?php endforeach; ?>
+                <?php if (!empty($permissions['workshop_upload_active'])): ?>
+                <button type="button" class="btn btn-sm btn-ghost" id="grantRevoke">İptal et</button>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php elseif ($currentUser['role'] === 'workshop'): ?>
+            <?php if ($file['status'] !== 'onarimda'): ?>
+            <div class="grant-banner grant-banner-warn">Dosya henüz onarımda değil. Durum “Onarımda” olunca ve danışman izin verince evrak ekleyebilirsiniz.</div>
+            <?php elseif (!empty($permissions['workshop_upload_active'])): ?>
+            <div class="grant-banner grant-banner-ok">Yükleme izni aktif · <?= e($permissions['workshop_upload_remaining'] ?? '') ?>
+                (bitiş <?= date('d.m.Y H:i', strtotime((string)$permissions['workshop_upload_until'])) ?>)</div>
+            <?php else: ?>
+            <div class="grant-banner grant-banner-warn">Hasar danışmanından süreli evrak yükleme izni bekleniyor (ör. 48 / 72 saat).</div>
+            <?php endif; ?>
+        <?php endif; ?>
+
         <?php if ($permissions['can_upload']): ?>
         <div class="upload-section">
             <h3>Evrak Yükle</h3>
@@ -195,6 +227,15 @@ require __DIR__ . '/../includes/header.php';
                 <dl>
                     <dt>Danışman</dt><dd><?= e($file['advisor_name']) ?></dd>
                     <dt>Oluşturulma</dt><dd><?= date('d.m.Y H:i', strtotime($file['created_at'])) ?></dd>
+                    <dt>Atölye yükleme izni</dt>
+                    <dd>
+                        <?php if (!empty($permissions['workshop_upload_active'])): ?>
+                            Aktif · <?= e($permissions['workshop_upload_remaining'] ?? '') ?>
+                            (<?= date('d.m.Y H:i', strtotime((string)$permissions['workshop_upload_until'])) ?>)
+                        <?php else: ?>
+                            Yok
+                        <?php endif; ?>
+                    </dd>
                     <dt>Not</dt><dd><?= e($file['note'] ?? '-') ?></dd>
                 </dl>
             </div>
@@ -270,6 +311,36 @@ require __DIR__ . '/../includes/header.php';
             this.value = '';
         });
     });
+
+    function grantWorkshopUpload(hours, revoke) {
+        var formData = new FormData();
+        formData.append('csrf', csrf);
+        formData.append('damage_file_id', fileId);
+        if (revoke) formData.append('revoke', '1');
+        else formData.append('hours', String(hours));
+        fetch('/api/workshop_upload_grant.php', { method: 'POST', body: formData })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.ok) {
+                    showToast(revoke ? 'İzin iptal edildi' : 'Atölye izni verildi', 'success');
+                    location.reload();
+                } else {
+                    showToast(data.error || 'Hata', 'error');
+                }
+            });
+    }
+    document.querySelectorAll('.grant-hours').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            grantWorkshopUpload(parseInt(this.dataset.hours, 10), false);
+        });
+    });
+    var revokeBtn = document.getElementById('grantRevoke');
+    if (revokeBtn) {
+        revokeBtn.addEventListener('click', function() {
+            if (!confirm('Atölye yükleme izni iptal edilsin mi?')) return;
+            grantWorkshopUpload(0, true);
+        });
+    }
 
     document.getElementById('docGrid').addEventListener('click', function(e) {
         var btn = e.target.closest('.doc-delete');

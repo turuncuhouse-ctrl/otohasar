@@ -699,6 +699,32 @@ body {
 
 /* File detail */
 .file-detail { max-width: 900px; margin: 0 auto; }
+.grant-panel {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+    margin-bottom: 1.25rem;
+}
+.grant-panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1rem;
+    align-items: baseline;
+    margin-bottom: .35rem;
+}
+.grant-active { color: #047857; font-size: .875rem; }
+.grant-idle { color: var(--text-muted); font-size: .875rem; }
+.grant-hint { margin: 0 0 .75rem; font-size: .8125rem; color: var(--text-muted); }
+.grant-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.grant-banner {
+    padding: .85rem 1rem;
+    border-radius: var(--radius);
+    margin-bottom: 1.25rem;
+    font-size: .875rem;
+}
+.grant-banner-ok { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+.grant-banner-warn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
 .file-header {
     display: flex;
     justify-content: space-between;
