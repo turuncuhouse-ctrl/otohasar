@@ -50,6 +50,7 @@ $pageTitle = $file['file_number'];
 $activeNav = 'dashboard';
 $categories = category_labels();
 $statuses = status_labels();
+$insCompanies = insurance_companies(true);
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -188,6 +189,75 @@ require __DIR__ . '/../includes/header.php';
     </div>
 
     <div class="tab-content" id="tab-info">
+        <?php if (!empty($permissions['can_edit'])): ?>
+        <form id="fileInfoForm" class="info-edit-form">
+            <div class="info-grid">
+                <div class="info-section">
+                    <h3>Araç</h3>
+                    <div class="form-group"><label>Plaka *</label><input class="form-input" name="plate" required value="<?= e($file['plate']) ?>"></div>
+                    <div class="form-row-2">
+                        <div class="form-group"><label>Marka *</label><input class="form-input" name="brand" required value="<?= e($file['brand']) ?>"></div>
+                        <div class="form-group"><label>Model *</label><input class="form-input" name="model" required value="<?= e($file['model']) ?>"></div>
+                    </div>
+                    <div class="form-row-2">
+                        <div class="form-group"><label>Yıl</label><input class="form-input" type="number" name="year" min="1980" max="2100" value="<?= e((string)($file['year'] ?? '')) ?>"></div>
+                        <div class="form-group"><label>Renk</label><input class="form-input" name="color" value="<?= e($file['color'] ?? '') ?>"></div>
+                    </div>
+                    <div class="form-group"><label>Şasi No</label><input class="form-input" name="chassis_no" value="<?= e($file['chassis_no'] ?? '') ?>"></div>
+                </div>
+                <div class="info-section">
+                    <h3>Müşteri</h3>
+                    <div class="form-group"><label>Ad Soyad *</label><input class="form-input" name="customer_name" required value="<?= e($file['customer_name']) ?>"></div>
+                    <div class="form-group"><label>Telefon</label><input class="form-input" type="tel" name="customer_phone" value="<?= e($file['customer_phone'] ?? '') ?>"></div>
+                    <div class="form-group"><label>TC / VKN *</label><input class="form-input" name="tc_vkn" required value="<?= e($file['tc_vkn']) ?>"></div>
+                    <div class="form-group"><label>E-posta</label><input class="form-input" type="email" name="customer_email" value="<?= e($file['customer_email'] ?? '') ?>"></div>
+                </div>
+                <div class="info-section">
+                    <h3>Sigorta</h3>
+                    <div class="form-group">
+                        <label>Şirket</label>
+                        <?php if ($insCompanies): ?>
+                        <select class="form-input" name="insurance_company">
+                            <option value="">— Seçin —</option>
+                            <?php foreach ($insCompanies as $ic):
+                                $iname = $ic['name'];
+                                $sel = ($file['insurance_company'] ?? '') === $iname ? 'selected' : '';
+                            ?>
+                            <option value="<?= e($iname) ?>" <?= $sel ?>><?= e($iname) ?></option>
+                            <?php endforeach; ?>
+                            <?php if (($file['insurance_company'] ?? '') !== '' && !in_array($file['insurance_company'], array_column($insCompanies, 'name'), true)): ?>
+                            <option value="<?= e($file['insurance_company']) ?>" selected><?= e($file['insurance_company']) ?> (kayıtlı)</option>
+                            <?php endif; ?>
+                        </select>
+                        <?php else: ?>
+                        <input class="form-input" name="insurance_company" value="<?= e($file['insurance_company'] ?? '') ?>">
+                        <?php endif; ?>
+                    </div>
+                    <div class="form-group"><label>Poliçe No</label><input class="form-input" name="policy_no" value="<?= e($file['policy_no'] ?? '') ?>"></div>
+                    <div class="form-group"><label>Hasar No</label><input class="form-input" name="claim_no" value="<?= e($file['claim_no'] ?? '') ?>"></div>
+                </div>
+                <div class="info-section">
+                    <h3>Dosya</h3>
+                    <dl class="info-readonly">
+                        <dt>Danışman</dt><dd><?= e($file['advisor_name']) ?></dd>
+                        <dt>Oluşturulma</dt><dd><?= date('d.m.Y H:i', strtotime($file['created_at'])) ?></dd>
+                        <dt>Atölye yükleme izni</dt>
+                        <dd>
+                            <?php if (!empty($permissions['workshop_upload_active'])): ?>
+                                Aktif · <?= e($permissions['workshop_upload_remaining'] ?? '') ?>
+                            <?php else: ?>
+                                Yok
+                            <?php endif; ?>
+                        </dd>
+                    </dl>
+                    <div class="form-group"><label>Not</label><textarea class="form-input" name="note" rows="3"><?= e($file['note'] ?? '') ?></textarea></div>
+                </div>
+            </div>
+            <div class="info-edit-actions">
+                <button type="submit" class="btn btn-primary">Bilgileri Kaydet</button>
+            </div>
+        </form>
+        <?php else: ?>
         <div class="info-grid">
             <div class="info-section">
                 <h3>Araç</h3>
@@ -212,6 +282,7 @@ require __DIR__ . '/../includes/header.php';
                         <?php endif; ?>
                     </dd>
                     <dt>TC/VKN</dt><dd><?= e($file['tc_vkn']) ?></dd>
+                    <dt>E-posta</dt><dd><?= e($file['customer_email'] ?? '-') ?></dd>
                 </dl>
             </div>
             <div class="info-section">
@@ -240,6 +311,7 @@ require __DIR__ . '/../includes/header.php';
                 </dl>
             </div>
         </div>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -339,6 +411,27 @@ require __DIR__ . '/../includes/header.php';
         revokeBtn.addEventListener('click', function() {
             if (!confirm('Atölye yükleme izni iptal edilsin mi?')) return;
             grantWorkshopUpload(0, true);
+        });
+    }
+
+    var infoForm = document.getElementById('fileInfoForm');
+    if (infoForm) {
+        infoForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(infoForm);
+            formData.append('csrf', csrf);
+            formData.append('damage_file_id', fileId);
+            fetch('/api/update_file_info.php', { method: 'POST', body: formData })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.ok) {
+                        showToast('Bilgiler kaydedildi', 'success');
+                        location.reload();
+                    } else {
+                        showToast(data.error || 'Kayıt hatası', 'error');
+                    }
+                })
+                .catch(function() { showToast('Bağlantı hatası', 'error'); });
         });
     }
 
