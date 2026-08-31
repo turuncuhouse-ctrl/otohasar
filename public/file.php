@@ -134,25 +134,40 @@ require __DIR__ . '/../includes/header.php';
             <div class="grant-panel-head">
                 <strong>Müşteri evrak izni</strong>
                 <?php if (!empty($permissions['customer_upload_active'])): ?>
-                <span class="grant-active">Aktif · <?= e($permissions['customer_upload_remaining'] ?? '') ?>
+                <span class="grant-active">Açık · <?= e($permissions['customer_upload_remaining'] ?? '') ?>
                     (<?= date('d.m.Y H:i', strtotime((string)$permissions['customer_upload_until'])) ?>)</span>
                 <?php else: ?>
-                <span class="grant-idle">Kapalı — müşteri yükleme yapamaz</span>
+                <span class="grant-idle">Kapalı</span>
                 <?php endif; ?>
             </div>
-            <p class="grant-hint">Eksik evrak için müşteriye süre açın; WhatsApp ile portal linki gönderin. Plaka: <a href="<?= e(customer_portal_url($file['plate'])) ?>" target="_blank" rel="noopener">/musteri/</a></p>
+            <p class="grant-hint">Eksik evrak için izni açın, ardından WhatsApp ile müşteriye link gönderin.</p>
             <div class="form-group" style="margin-bottom:.75rem">
                 <label for="customerGrantNote">Eksik evrak notu (müşteriye görünür)</label>
                 <input type="text" id="customerGrantNote" class="form-input" maxlength="255"
                        placeholder="Örn: ruhsat ve ehliyet fotoğrafı"
                        value="<?= e($permissions['customer_upload_note'] ?? '') ?>">
             </div>
-            <div class="grant-actions">
-                <?php foreach ([12 => '12s', 24 => '24s', 48 => '48s', 72 => '72s', 168 => '7 gün'] as $h => $lab): ?>
-                <button type="button" class="btn btn-sm btn-primary cust-grant-hours" data-hours="<?= (int)$h ?>"><?= e($lab) ?></button>
-                <?php endforeach; ?>
-                <?php if (!empty($permissions['customer_upload_active'])): ?>
-                <button type="button" class="btn btn-sm btn-ghost" id="custGrantRevoke">İptal et</button>
+            <div class="form-group" style="margin-bottom:.75rem">
+                <label for="customerGrantHours">İzin süresi</label>
+                <select id="customerGrantHours" class="form-input">
+                    <?php
+                    $hourOpts = [12 => '12 saat', 24 => '24 saat', 48 => '48 saat', 72 => '72 saat', 168 => '7 gün'];
+                    $selH = (int) ($permissions['customer_upload_hours'] ?? 48);
+                    if (!isset($hourOpts[$selH])) {
+                        $selH = 48;
+                    }
+                    foreach ($hourOpts as $h => $lab):
+                    ?>
+                    <option value="<?= (int)$h ?>" <?= $selH === (int)$h ? 'selected' : '' ?>><?= e($lab) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="grant-actions grant-actions-toggle">
+                <?php if (empty($permissions['customer_upload_active'])): ?>
+                <button type="button" class="btn btn-primary" id="custGrantOpen">İzni Aç</button>
+                <?php else: ?>
+                <button type="button" class="btn btn-primary" id="custGrantOpen">Süreyi Yenile / Açık Tut</button>
+                <button type="button" class="btn btn-danger" id="custGrantClose">İzni Kapat</button>
                 <?php
                     $portalUrl = customer_portal_url($file['plate'], $permissions['customer_upload_token'] ?? null);
                     $waInvite = wa_url(
@@ -168,8 +183,8 @@ require __DIR__ . '/../includes/header.php';
                     );
                     if ($waInvite):
                 ?>
-                <a class="btn btn-sm btn-wa" href="<?= e($waInvite) ?>" target="_blank" rel="noopener"
-                   data-file-id="<?= (int)$fileId ?>" data-status="<?= e($file['status']) ?>">WhatsApp gönder</a>
+                <a class="btn btn-wa" href="<?= e($waInvite) ?>" target="_blank" rel="noopener"
+                   data-file-id="<?= (int)$fileId ?>" data-status="<?= e($file['status']) ?>">WhatsApp Gönder</a>
                 <?php endif; ?>
                 <?php endif; ?>
             </div>
@@ -477,10 +492,10 @@ require __DIR__ . '/../includes/header.php';
             .then(function(data) {
                 if (data.ok) {
                     if (revoke) {
-                        showToast('Müşteri izni iptal edildi', 'success');
+                        showToast('Müşteri evrak izni kapatıldı', 'success');
                         location.reload();
                     } else {
-                        showToast('Müşteri yükleme izni açıldı', 'success');
+                        showToast('Müşteri evrak izni açıldı', 'success');
                         if (data.whatsapp) {
                             showWaPrompt(data.whatsapp, data.plate);
                             setTimeout(function() { location.reload(); }, 4000);
@@ -493,15 +508,20 @@ require __DIR__ . '/../includes/header.php';
                 }
             });
     }
-    document.querySelectorAll('.cust-grant-hours').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            grantCustomerUpload(parseInt(this.dataset.hours, 10), false);
+    function selectedCustomerGrantHours() {
+        var sel = document.getElementById('customerGrantHours');
+        return sel ? parseInt(sel.value, 10) : 48;
+    }
+    var custOpen = document.getElementById('custGrantOpen');
+    if (custOpen) {
+        custOpen.addEventListener('click', function() {
+            grantCustomerUpload(selectedCustomerGrantHours(), false);
         });
-    });
-    var custRevoke = document.getElementById('custGrantRevoke');
-    if (custRevoke) {
-        custRevoke.addEventListener('click', function() {
-            if (!confirm('Müşteri yükleme izni iptal edilsin mi?')) return;
+    }
+    var custClose = document.getElementById('custGrantClose');
+    if (custClose) {
+        custClose.addEventListener('click', function() {
+            if (!confirm('Müşteri evrak izni kapatılsın mı?')) return;
             grantCustomerUpload(0, true);
         });
     }
