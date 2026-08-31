@@ -20,6 +20,18 @@ jobs:
           script_stop: true
           script: |
             set -e
-            cd /mnt/1tb_disk/otohasar
-            chmod +x scripts/auto-deploy.sh
+            APP=/mnt/1tb_disk/otohasar
+            mkdir -p "$APP/data/mysql" "$APP/data/uploads"
+            cd "$APP"
+
+            if [ ! -d .git ]; then
+              git init -b main
+              git remote add origin https://github.com/turuncuhouse-ctrl/otohasar.git || true
+            fi
+
+            git remote set-url origin https://github.com/turuncuhouse-ctrl/otohasar.git
+            git fetch origin
+            git checkout -B main origin/main 2>/dev/null || git reset --hard origin/main
+
+            chmod +x scripts/*.sh
             ./scripts/auto-deploy.sh ${{ github.ref_name }}

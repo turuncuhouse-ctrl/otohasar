@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Sunucuda GitHub güncellemesi (Portainer stack ile uyumlu)
-# Kullanım: ./scripts/auto-deploy.sh
-# GitHub Actions her push'ta bunu çalıştırır.
+# Sunucuda GitHub guncellemesi (Portainer stack ile uyumlu)
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/mnt/1tb_disk/otohasar}"
@@ -14,8 +12,7 @@ echo "Dizin: $APP_DIR"
 echo "Branch: $BRANCH"
 
 if [ ! -d .git ]; then
-    echo "HATA: Bu dizin bir git reposu değil."
-    echo "Ilk kurulum icin GITHUB-DEPLOY.md dosyasina bakin."
+    echo "HATA: Bu dizin bir git reposu degil."
     exit 1
 fi
 
@@ -28,18 +25,19 @@ sed -i 's/\r$//' docker/entrypoint.sh 2>/dev/null || true
 find scripts -name '*.sh' -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
 
 echo "[3/4] Container yeniden baslatiliyor..."
-if command -v docker >/dev/null 2>&1; then
-    docker restart otohasar_php otohasar_nginx 2>/dev/null || sudo docker restart otohasar_php otohasar_nginx
+if docker restart otohasar_php otohasar_nginx 2>/dev/null; then
+    true
+elif sudo docker restart otohasar_php otohasar_nginx 2>/dev/null; then
+    true
 else
-    echo "HATA: docker bulunamadi"
-    exit 1
+    echo "UYARI: Container restart edilemedi (belki henuz yok)."
 fi
 
 echo "[4/4] Kontrol..."
 sleep 3
 docker ps --filter name=otohasar_ --format 'table {{.Names}}\t{{.Status}}' 2>/dev/null \
-  || sudo docker ps --filter name=otohasar_ --format 'table {{.Names}}\t{{.Status}}'
+  || sudo docker ps --filter name=otohasar_ --format 'table {{.Names}}\t{{.Status}}' 2>/dev/null \
+  || true
 
 echo ""
 echo "Deploy tamamlandi."
-echo "Test: curl -I http://127.0.0.1:4080"
