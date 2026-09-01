@@ -52,6 +52,9 @@ docker exec otohasar_php php /var/www/scripts/migrate_v3.php 2>/dev/null \
 docker exec otohasar_php php /var/www/scripts/migrate_v4.php 2>/dev/null \
   || sudo docker exec otohasar_php php /var/www/scripts/migrate_v4.php 2>/dev/null \
   || true
+docker exec otohasar_php php /var/www/scripts/migrate_v5.php 2>/dev/null \
+  || sudo docker exec otohasar_php php /var/www/scripts/migrate_v5.php 2>/dev/null \
+  || true
 
 echo "[4/4] Kontrol..."
 sleep 3

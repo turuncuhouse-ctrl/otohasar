@@ -57,10 +57,10 @@ function find_files_by_plate(string $plate): array
          FROM damage_files df
          JOIN vehicles v ON v.id = df.vehicle_id
          JOIN customers c ON c.id = v.customer_id
-         WHERE v.plate = ?
+         WHERE REPLACE(UPPER(v.plate), " ", "") = ?
          ORDER BY (df.status = \'tamamlandi\') ASC, df.updated_at DESC'
     );
-    $stmt->execute([format_plate($plate)]);
+    $stmt->execute([normalize_plate($plate)]);
     return $stmt->fetchAll();
 }
 
@@ -95,9 +95,9 @@ function find_portal_file(int $fileId, string $plate): ?array
          FROM damage_files df
          JOIN vehicles v ON v.id = df.vehicle_id
          JOIN customers c ON c.id = v.customer_id
-         WHERE df.id = ? AND v.plate = ?'
+         WHERE df.id = ? AND REPLACE(UPPER(v.plate), " ", "") = ?'
     );
-    $stmt->execute([$fileId, format_plate($plate)]);
+    $stmt->execute([$fileId, normalize_plate($plate)]);
     $row = $stmt->fetch();
     return $row ?: null;
 }
@@ -118,4 +118,10 @@ function portal_rate_limited(): bool
     $bucket[] = $now;
     $_SESSION['portal_lookup_times'] = $bucket;
     return false;
+}
+
+// Oturum + CSRF her portal isteğinde hazır olsun (ilk POST hatasını önler)
+start_session();
+if (empty($_SESSION['csrf_token'])) {
+    csrf_token();
 }

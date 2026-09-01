@@ -29,14 +29,6 @@ if (!can_access_file($user, $file)) {
 }
 
 if (!can_upload_category($user, $file, $category)) {
-    if (($user['role'] ?? '') === 'workshop') {
-        if (($file['status'] ?? '') !== 'onarimda') {
-            json_error('Atölye yalnızca onarımda olan dosyalara evrak ekleyebilir', 403);
-        }
-        if (!is_workshop_upload_granted($file)) {
-            json_error('Hasar danışmanı süreli yükleme izni vermedi veya süre doldu', 403);
-        }
-    }
     json_error('Bu kategoriye yükleme yetkiniz yok', 403);
 }
 

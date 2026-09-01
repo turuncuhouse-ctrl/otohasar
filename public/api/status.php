@@ -54,7 +54,8 @@ $waText = wa_status_message(
     (string) ($file['customer_name'] ?? ''),
     (string) ($file['plate'] ?? ''),
     (string) $file['file_number'],
-    $newStatus
+    $newStatus,
+    $file['work_order_no'] ?? null
 );
 
 json_response([

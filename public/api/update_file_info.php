@@ -7,25 +7,30 @@ verify_api_csrf();
 
 $fileId = (int) ($_POST['damage_file_id'] ?? 0);
 
-$customerName  = trim($_POST['customer_name'] ?? '');
-$customerPhone = trim($_POST['customer_phone'] ?? '');
-$customerEmail = trim($_POST['customer_email'] ?? '');
-$tcVkn         = trim($_POST['tc_vkn'] ?? '');
+$customerName    = trim($_POST['customer_name'] ?? '');
+$customerPhone   = trim($_POST['customer_phone'] ?? '');
+$customerAddress = trim($_POST['customer_address'] ?? '');
+$customerEmail   = trim($_POST['customer_email'] ?? '');
+$tcVkn           = trim($_POST['tc_vkn'] ?? '');
 
-$plate     = format_plate($_POST['plate'] ?? '');
+$plate     = normalize_plate($_POST['plate'] ?? '');
 $brand     = trim($_POST['brand'] ?? '');
 $model     = trim($_POST['model'] ?? '');
 $year      = (int) ($_POST['year'] ?? 0);
 $color     = trim($_POST['color'] ?? '');
 $chassisNo = trim($_POST['chassis_no'] ?? '');
 
+$workOrderNo = trim($_POST['work_order_no'] ?? '');
 $insuranceCo = trim($_POST['insurance_company'] ?? '');
 $policyNo    = trim($_POST['policy_no'] ?? '');
 $claimNo     = trim($_POST['claim_no'] ?? '');
 $note        = trim($_POST['note'] ?? '');
 
-if ($customerName === '' || $tcVkn === '' || $plate === '' || $brand === '' || $model === '') {
-    json_error('Müşteri adı, TC/VKN, plaka, marka ve model zorunludur');
+if ($customerName === '' || $customerPhone === '' || $customerAddress === '') {
+    json_error('Müşteri adı, telefon ve adres zorunludur');
+}
+if ($plate === '' || !is_valid_plate($plate)) {
+    json_error('Geçerli plaka giriniz (ör. 35ABC35)');
 }
 
 $pdo = db();
@@ -56,7 +61,7 @@ if (empty($perms['can_edit'])) {
 $customerId = (int) $file['customer_id'];
 $vehicleId  = (int) $file['vehicle_id'];
 
-if ($tcVkn !== (string) $file['old_tc_vkn']) {
+if ($tcVkn !== '' && $tcVkn !== (string) $file['old_tc_vkn']) {
     $chk = $pdo->prepare('SELECT id FROM customers WHERE tc_vkn = ? AND id <> ?');
     $chk->execute([$tcVkn, $customerId]);
     if ($chk->fetch()) {
@@ -64,8 +69,8 @@ if ($tcVkn !== (string) $file['old_tc_vkn']) {
     }
 }
 
-if ($plate !== format_plate((string) $file['old_plate'])) {
-    $chk = $pdo->prepare('SELECT id FROM vehicles WHERE plate = ? AND id <> ?');
+if ($plate !== normalize_plate((string) $file['old_plate'])) {
+    $chk = $pdo->prepare('SELECT id FROM vehicles WHERE REPLACE(UPPER(plate), " ", "") = ? AND id <> ?');
     $chk->execute([$plate, $vehicleId]);
     if ($chk->fetch()) {
         json_error('Bu plaka başka bir araca kayıtlı');
@@ -76,13 +81,14 @@ try {
     $pdo->beginTransaction();
 
     $stmt = $pdo->prepare(
-        'UPDATE customers SET name = ?, phone = ?, email = ?, tc_vkn = ? WHERE id = ?'
+        'UPDATE customers SET name = ?, phone = ?, address = ?, email = ?, tc_vkn = ? WHERE id = ?'
     );
     $stmt->execute([
         $customerName,
-        $customerPhone !== '' ? $customerPhone : null,
+        $customerPhone,
+        $customerAddress,
         $customerEmail !== '' ? $customerEmail : null,
-        $tcVkn,
+        $tcVkn !== '' ? $tcVkn : $file['old_tc_vkn'],
         $customerId,
     ]);
 
@@ -91,8 +97,8 @@ try {
     );
     $stmt->execute([
         $plate,
-        $brand,
-        $model,
+        $brand !== '' ? $brand : '-',
+        $model !== '' ? $model : '-',
         $year > 0 ? $year : null,
         $color !== '' ? $color : null,
         $chassisNo !== '' ? $chassisNo : null,
@@ -101,10 +107,11 @@ try {
 
     $stmt = $pdo->prepare(
         'UPDATE damage_files
-         SET insurance_company = ?, policy_no = ?, claim_no = ?, note = ?
+         SET work_order_no = ?, insurance_company = ?, policy_no = ?, claim_no = ?, note = ?
          WHERE id = ?'
     );
     $stmt->execute([
+        $workOrderNo !== '' ? $workOrderNo : null,
         $insuranceCo !== '' ? $insuranceCo : null,
         $policyNo !== '' ? $policyNo : null,
         $claimNo !== '' ? $claimNo : null,
@@ -112,33 +119,11 @@ try {
         $fileId,
     ]);
 
-    $changes = [];
-    if ($customerName !== (string) $file['old_customer_name']) {
-        $changes[] = 'müşteri adı';
-    }
-    if ($customerPhone !== (string) ($file['old_phone'] ?? '')) {
-        $changes[] = 'telefon';
-    }
-    if ($tcVkn !== (string) $file['old_tc_vkn']) {
-        $changes[] = 'TC/VKN';
-    }
-    if ($plate !== format_plate((string) $file['old_plate'])) {
-        $changes[] = 'plaka';
-    }
-
-    $desc = $changes
-        ? 'Dosya bilgileri güncellendi (' . implode(', ', $changes) . ')'
-        : 'Dosya bilgileri güncellendi';
-    add_file_log($pdo, $fileId, (int) $user['id'], $desc);
+    add_file_log($pdo, $fileId, (int) $user['id'], 'Dosya bilgileri güncellendi');
 
     $pdo->commit();
 
-    json_response([
-        'ok'             => true,
-        'customer_name'  => $customerName,
-        'customer_phone' => $customerPhone,
-        'plate'          => $plate,
-    ]);
+    json_response(['ok' => true]);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();

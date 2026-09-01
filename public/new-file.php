@@ -20,7 +20,6 @@ require __DIR__ . '/../includes/header.php';
 </div>
 
 <div class="new-file-container">
-    <!-- Step 1: Form -->
     <div id="step1" class="step-panel active">
         <div class="step-indicator">
             <span class="step active">1</span>
@@ -31,17 +30,18 @@ require __DIR__ . '/../includes/header.php';
         <form id="createFileForm" class="mobile-form">
             <div class="form-group">
                 <label for="plate">Plaka *</label>
-                <input type="text" id="plate" name="plate" required class="form-input" placeholder="35 ABC 123" autocomplete="off">
+                <input type="text" id="plate" name="plate" required class="form-input" placeholder="35ABC35" autocomplete="off" maxlength="9" style="text-transform:uppercase">
+                <small class="form-hint">Format: 35ABC35 (boşluksuz, büyük harf)</small>
                 <div id="plateSuggestions" class="suggestions"></div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="brand">Marka *</label>
-                    <input type="text" id="brand" name="brand" required class="form-input">
+                    <label for="brand">Marka</label>
+                    <input type="text" id="brand" name="brand" class="form-input">
                 </div>
                 <div class="form-group">
-                    <label for="model">Model *</label>
-                    <input type="text" id="model" name="model" required class="form-input">
+                    <label for="model">Model</label>
+                    <input type="text" id="model" name="model" class="form-input">
                 </div>
             </div>
             <div class="form-row">
@@ -63,17 +63,23 @@ require __DIR__ . '/../includes/header.php';
                 <label for="customer_name">Müşteri Adı *</label>
                 <input type="text" id="customer_name" name="customer_name" required class="form-input">
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="customer_phone">Telefon</label>
-                    <input type="tel" id="customer_phone" name="customer_phone" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label for="tc_vkn">TC/VKN *</label>
-                    <input type="text" id="tc_vkn" name="tc_vkn" required class="form-input">
-                </div>
+            <div class="form-group">
+                <label for="customer_phone">Telefon *</label>
+                <input type="tel" id="customer_phone" name="customer_phone" required class="form-input">
+            </div>
+            <div class="form-group">
+                <label for="customer_address">Adres *</label>
+                <input type="text" id="customer_address" name="customer_address" required class="form-input">
+            </div>
+            <div class="form-group">
+                <label for="tc_vkn">TC/VKN</label>
+                <input type="text" id="tc_vkn" name="tc_vkn" class="form-input">
             </div>
             <hr class="form-divider">
+            <div class="form-group">
+                <label for="work_order_no">İş emri no (özel)</label>
+                <input type="text" id="work_order_no" name="work_order_no" class="form-input" placeholder="İsteğe bağlı">
+            </div>
             <div class="form-group">
                 <label for="insurance_company">Sigorta Şirketi</label>
                 <?php $insurers = insurance_companies(true); ?>
@@ -81,11 +87,7 @@ require __DIR__ . '/../includes/header.php';
                 <select id="insurance_company" name="insurance_company" class="form-input">
                     <option value="">Seçiniz</option>
                     <?php foreach ($insurers as $ins): ?>
-                    <option value="<?= e($ins['name']) ?>"
-                        data-labor="<?= e((string)$ins['labor_discount']) ?>"
-                        data-parts="<?= e((string)$ins['parts_discount']) ?>">
-                        <?= e($ins['name']) ?> (İşçilik %<?= e((string)$ins['labor_discount']) ?> / Parça %<?= e((string)$ins['parts_discount']) ?>)
-                    </option>
+                    <option value="<?= e($ins['name']) ?>"><?= e($ins['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
                 <?php else: ?>
@@ -110,7 +112,6 @@ require __DIR__ . '/../includes/header.php';
         </form>
     </div>
 
-    <!-- Step 2: Upload -->
     <div id="step2" class="step-panel">
         <div class="step-indicator">
             <span class="step done">✓</span>
@@ -122,7 +123,6 @@ require __DIR__ . '/../includes/header.php';
             <p>Evrak yüklemeye başlayabilirsiniz</p>
             <a id="goToFileLink" href="#" class="btn btn-ghost btn-sm">Dosya Detayına Git →</a>
         </div>
-
         <div class="category-grid" id="categoryGrid">
             <?php foreach ($categories as $key => $label):
                 $icon = match($key) {
@@ -139,14 +139,11 @@ require __DIR__ . '/../includes/header.php';
             </div>
             <?php endforeach; ?>
         </div>
-
         <div class="dropzone" id="dropzone">
             <p>Fotoğraf sürükleyip bırakın veya tıklayın</p>
             <input type="file" id="dropInput" accept="image/jpeg,image/png,image/webp" multiple>
         </div>
-
         <div id="uploadPreview" class="upload-preview"></div>
-
         <a href="/dashboard.php" class="btn btn-primary btn-block btn-lg">Panoya Dön</a>
     </div>
 </div>
@@ -156,13 +153,26 @@ require __DIR__ . '/../includes/header.php';
     var csrf = document.querySelector('meta[name="csrf-token"]').content;
     var fileId = null;
     var plateTimer = null;
+    var plateInput = document.getElementById('plate');
 
-    document.getElementById('plate').addEventListener('input', function() {
+    function normalizePlate(val) {
+        return (val || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    }
+
+    function isValidPlate(p) {
+        return /^\d{2}[A-Z]{1,3}\d{2,4}$/.test(p);
+    }
+
+    plateInput.addEventListener('input', function() {
+        var raw = this.value;
+        var norm = normalizePlate(raw);
+        if (norm !== raw.replace(/\s/g, '')) {
+            this.value = norm;
+        }
         clearTimeout(plateTimer);
-        var q = this.value.trim();
-        if (q.length < 2) { document.getElementById('plateSuggestions').innerHTML = ''; return; }
+        if (norm.length < 2) { document.getElementById('plateSuggestions').innerHTML = ''; return; }
         plateTimer = setTimeout(function() {
-            fetch('/api/plate_search.php?q=' + encodeURIComponent(q))
+            fetch('/api/plate_search.php?q=' + encodeURIComponent(norm))
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
                     var html = '';
@@ -179,21 +189,20 @@ require __DIR__ . '/../includes/header.php';
     document.getElementById('plateSuggestions').addEventListener('click', function(e) {
         var item = e.target.closest('.suggestion-item');
         if (!item) return;
-        var plate = item.dataset.plate;
-        fetch('/api/plate_search.php?q=' + encodeURIComponent(plate))
+        fetch('/api/plate_search.php?q=' + encodeURIComponent(item.dataset.plate))
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.results && data.results[0]) {
                     var v = data.results[0];
-                    document.getElementById('plate').value = v.plate;
-                    document.getElementById('brand').value = v.brand;
-                    document.getElementById('model').value = v.model;
+                    plateInput.value = normalizePlate(v.plate);
+                    document.getElementById('brand').value = v.brand || '';
+                    document.getElementById('model').value = v.model || '';
                     document.getElementById('year').value = v.year || '';
                     document.getElementById('color').value = v.color || '';
                     document.getElementById('chassis_no').value = v.chassis_no || '';
-                    document.getElementById('customer_name').value = v.customer_name;
+                    document.getElementById('customer_name').value = v.customer_name || '';
                     document.getElementById('customer_phone').value = v.customer_phone || '';
-                    document.getElementById('tc_vkn').value = v.tc_vkn;
+                    document.getElementById('tc_vkn').value = v.tc_vkn || '';
                 }
                 document.getElementById('plateSuggestions').innerHTML = '';
             });
@@ -201,13 +210,18 @@ require __DIR__ . '/../includes/header.php';
 
     document.getElementById('createFileForm').addEventListener('submit', function(e) {
         e.preventDefault();
+        var plate = normalizePlate(plateInput.value);
+        plateInput.value = plate;
+        if (!isValidPlate(plate)) {
+            showToast('Geçerli plaka giriniz (ör. 35ABC35)', 'error');
+            return;
+        }
         var btn = document.getElementById('createBtn');
         btn.disabled = true;
         btn.textContent = 'Oluşturuluyor...';
-
         var formData = new FormData(this);
+        formData.set('plate', plate);
         formData.append('csrf', csrf);
-
         fetch('/api/create_file.php', { method: 'POST', body: formData })
             .then(function(r) { return r.json(); })
             .then(function(data) {
@@ -237,46 +251,21 @@ require __DIR__ . '/../includes/header.php';
         formData.append('csrf', csrf);
         formData.append('damage_file_id', fileId);
         formData.append('category', category);
-        for (var i = 0; i < files.length; i++) {
-            formData.append('files[]', files[i]);
-        }
-
-        var previewId = 'upload-' + Date.now();
-        var preview = document.getElementById('uploadPreview');
-        var card = document.createElement('div');
-        card.className = 'preview-card uploading';
-        card.id = previewId;
-        card.innerHTML = '<div class="preview-info">Yükleniyor: ' + files.length + ' dosya (' + category + ')</div><div class="progress-bar"><div class="progress-fill"></div></div>';
-        preview.prepend(card);
-
+        for (var i = 0; i < files.length; i++) formData.append('files[]', files[i]);
         fetch('/api/upload.php', { method: 'POST', body: formData })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                var el = document.getElementById(previewId);
                 if (data.ok && data.uploaded.length) {
-                    el.className = 'preview-card success';
-                    var imgs = data.uploaded.map(function(u) {
-                        return '<img src="' + u.file_path + '" alt="' + u.original_name + '">';
-                    }).join('');
-                    el.innerHTML = '<div class="preview-info">✓ ' + data.uploaded.length + ' dosya yüklendi</div><div class="preview-images">' + imgs + '</div>';
                     showToast(data.uploaded.length + ' evrak yüklendi', 'success');
                 } else {
-                    el.className = 'preview-card error';
-                    el.innerHTML = '<div class="preview-info">✗ ' + (data.error || data.errors.join(', ')) + '</div>';
                     showToast(data.error || 'Yükleme hatası', 'error');
                 }
-            })
-            .catch(function() {
-                document.getElementById(previewId).className = 'preview-card error';
-                showToast('Bağlantı hatası', 'error');
             });
     }
 
     document.querySelectorAll('.category-card').forEach(function(card) {
         var input = card.querySelector('.cat-input');
-        card.addEventListener('click', function(e) {
-            if (e.target !== input) input.click();
-        });
+        card.addEventListener('click', function(e) { if (e.target !== input) input.click(); });
         input.addEventListener('change', function() {
             if (this.files.length) uploadFiles(card.dataset.category, this.files);
             this.value = '';

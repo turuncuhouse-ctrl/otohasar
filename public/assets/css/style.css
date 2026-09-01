@@ -312,6 +312,7 @@ body {
 .btn:disabled { opacity: .6; cursor: not-allowed; }
 
 /* Forms */
+.form-hint { display: block; font-size: .75rem; color: var(--text-muted); margin-top: .25rem; }
 .form-group { margin-bottom: 1rem; }
 .form-group label {
     display: block;
@@ -719,6 +720,35 @@ body {
 .grant-idle { color: var(--text-muted); font-size: .875rem; }
 .grant-hint { margin: 0 0 .75rem; font-size: .8125rem; color: var(--text-muted); }
 .grant-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.grant-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    font-size: .875rem;
+    font-weight: 600;
+}
+.grant-toggle-row input { position: absolute; opacity: 0; width: 0; height: 0; }
+.grant-toggle-ui {
+    width: 48px; height: 26px; background: #cbd5e1; border-radius: 999px;
+    position: relative; transition: background .2s; flex-shrink: 0;
+}
+.grant-toggle-ui::after {
+    content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+    background: #fff; border-radius: 50%; transition: transform .2s;
+}
+.grant-toggle-row input:checked + .grant-toggle-ui { background: #22c55e; }
+.grant-toggle-row input:checked + .grant-toggle-ui::after { transform: translateX(22px); }
+.work-order-badge {
+    display: inline-block;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    border-radius: 6px;
+    padding: .2rem .5rem;
+    font-size: .75rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
 .grant-banner {
     padding: .85rem 1rem;
     border-radius: var(--radius);

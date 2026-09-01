@@ -25,9 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (portal_rate_limited()) {
         $error = 'Çok fazla deneme. Lütfen bir süre sonra tekrar deneyin.';
     } else {
-        $plate = format_plate($_POST['plate'] ?? '');
-        if ($plate === '') {
-            $error = 'Plaka giriniz';
+        $plate = normalize_plate($_POST['plate'] ?? '');
+        if ($plate === '' || !is_valid_plate($plate)) {
+            $error = 'Geçerli plaka giriniz (ör. 35ABC35)';
         } else {
             $files = find_files_by_plate($plate);
             if (!$files) {
@@ -72,7 +72,7 @@ $pageTitle = 'Müşteri Sorgulama';
             <div class="form-group">
                 <label for="plate">Plaka</label>
                 <input type="text" id="plate" name="plate" required class="form-input" autocomplete="off"
-                       placeholder="34 ABC 123" value="<?= e($prefill) ?>" style="text-transform:uppercase">
+                       placeholder="35ABC35" value="<?= e($prefill) ?>" style="text-transform:uppercase" maxlength="9">
             </div>
             <button type="submit" class="btn btn-primary btn-block">Sorgula</button>
         </form>

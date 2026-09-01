@@ -57,6 +57,11 @@ require __DIR__ . '/../../includes/header.php';
         <p>Anlaşmalı şirketler, işçilik ve parça iskontosu</p>
         <span class="admin-stat"><?= $insCount ?> aktif</span>
     </a>
+    <a class="admin-card" href="/admin/whatsapp.php">
+        <h2>WhatsApp Şablonları</h2>
+        <p>Durum ve evrak yükleme mesaj metinleri</p>
+        <span class="admin-stat">Özelleştir</span>
+    </a>
 </div>
 
 <?php require __DIR__ . '/../../includes/footer.php'; ?>

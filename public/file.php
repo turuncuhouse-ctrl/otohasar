@@ -13,7 +13,7 @@ if ($fileId <= 0) {
 $pdo = db();
 $stmt = $pdo->prepare(
     'SELECT df.*, v.plate, v.brand, v.model, v.year, v.color, v.chassis_no,
-            c.name AS customer_name, c.phone AS customer_phone, c.tc_vkn, c.email AS customer_email,
+            c.name AS customer_name, c.phone AS customer_phone, c.tc_vkn, c.email AS customer_email, c.address AS customer_address,
             u.name AS advisor_name
      FROM damage_files df
      JOIN vehicles v ON v.id = df.vehicle_id
@@ -58,7 +58,7 @@ require __DIR__ . '/../includes/header.php';
 <div class="file-detail">
     <div class="file-header">
         <div class="file-header-left">
-            <?= plate_badge_html($file['plate']) ?>
+            <?= plate_badge_html($file['plate'], $file['work_order_no'] ?? null) ?>
             <h1><?= e($file['file_number']) ?></h1>
             <span class="status-pill <?= e(status_colors()[$file['status']]) ?>"><?= e($statuses[$file['status']]) ?></span>
         </div>
@@ -76,7 +76,7 @@ require __DIR__ . '/../includes/header.php';
             <?php
             $waUrl = wa_url(
                 $file['customer_phone'] ?? null,
-                wa_status_message($file['customer_name'], $file['plate'], $file['file_number'], $file['status'])
+                wa_status_message($file['customer_name'], $file['plate'], $file['file_number'], $file['status'], $file['work_order_no'] ?? null)
             );
             if ($waUrl):
             ?>
@@ -97,57 +97,29 @@ require __DIR__ . '/../includes/header.php';
     </div>
 
     <div class="tab-content active" id="tab-docs">
-        <?php if (!empty($permissions['can_grant_workshop_upload'])): ?>
-        <div class="grant-panel" id="workshopGrantPanel">
-            <div class="grant-panel-head">
-                <strong>Atölye evrak izni</strong>
-                <?php if (!empty($permissions['workshop_upload_active'])): ?>
-                <span class="grant-active">Aktif · <?= e($permissions['workshop_upload_remaining'] ?? '') ?>
-                    (<?= date('d.m.Y H:i', strtotime((string)$permissions['workshop_upload_until'])) ?>)</span>
-                <?php else: ?>
-                <span class="grant-idle">İzin yok — atölye yükleme yapamaz</span>
-                <?php endif; ?>
-            </div>
-            <p class="grant-hint">Dosya atölyeye geldiğinde hasar danışmanı / yönetici süre tanımlar. Süre bitince yükleme kapanır.</p>
-            <div class="grant-actions">
-                <?php foreach ([12 => '12s', 24 => '24s', 48 => '48s', 72 => '72s', 168 => '7 gün'] as $h => $lab): ?>
-                <button type="button" class="btn btn-sm btn-primary grant-hours" data-hours="<?= (int)$h ?>"><?= e($lab) ?></button>
-                <?php endforeach; ?>
-                <?php if (!empty($permissions['workshop_upload_active'])): ?>
-                <button type="button" class="btn btn-sm btn-ghost" id="grantRevoke">İptal et</button>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php elseif ($currentUser['role'] === 'workshop'): ?>
-            <?php if ($file['status'] !== 'onarimda'): ?>
-            <div class="grant-banner grant-banner-warn">Dosya henüz onarımda değil. Durum “Onarımda” olunca ve danışman izin verince evrak ekleyebilirsiniz.</div>
-            <?php elseif (!empty($permissions['workshop_upload_active'])): ?>
-            <div class="grant-banner grant-banner-ok">Yükleme izni aktif · <?= e($permissions['workshop_upload_remaining'] ?? '') ?>
-                (bitiş <?= date('d.m.Y H:i', strtotime((string)$permissions['workshop_upload_until'])) ?>)</div>
-            <?php else: ?>
-            <div class="grant-banner grant-banner-warn">Hasar danışmanından süreli evrak yükleme izni bekleniyor (ör. 48 / 72 saat).</div>
-            <?php endif; ?>
-        <?php endif; ?>
-
         <?php if (!empty($permissions['can_grant_customer_upload'])): ?>
-        <div class="grant-panel" id="customerGrantPanel">
+        <div class="grant-panel" id="customerGrantPanel" data-active="<?= !empty($permissions['customer_upload_active']) ? '1' : '0' ?>">
             <div class="grant-panel-head">
-                <strong>Müşteri evrak izni</strong>
-                <?php if (!empty($permissions['customer_upload_active'])): ?>
-                <span class="grant-active">Açık · <?= e($permissions['customer_upload_remaining'] ?? '') ?>
-                    (<?= date('d.m.Y H:i', strtotime((string)$permissions['customer_upload_until'])) ?>)</span>
-                <?php else: ?>
-                <span class="grant-idle">Kapalı</span>
-                <?php endif; ?>
+                <strong>Müşteri evrak yükleme</strong>
+                <span id="custGrantStatus" class="<?= !empty($permissions['customer_upload_active']) ? 'grant-active' : 'grant-idle' ?>">
+                    <?= !empty($permissions['customer_upload_active'])
+                        ? 'Açık · ' . e($permissions['customer_upload_remaining'] ?? '')
+                        : 'Kapalı' ?>
+                </span>
             </div>
-            <p class="grant-hint">Eksik evrak için izni açın, ardından WhatsApp ile müşteriye link gönderin.</p>
-            <div class="form-group" style="margin-bottom:.75rem">
+            <p class="grant-hint">Açtığınızda müşteri plakasıyla giriş yapıp eksik evrak fotoğrafı yükleyebilir. Süre bitince otomatik kapanır.</p>
+            <label class="grant-toggle-row">
+                <span>İzin durumu</span>
+                <input type="checkbox" id="custGrantToggle" <?= !empty($permissions['customer_upload_active']) ? 'checked' : '' ?>>
+                <span class="grant-toggle-ui"></span>
+            </label>
+            <div class="form-group" style="margin-top:.75rem">
                 <label for="customerGrantNote">Eksik evrak notu (müşteriye görünür)</label>
                 <input type="text" id="customerGrantNote" class="form-input" maxlength="255"
                        placeholder="Örn: ruhsat ve ehliyet fotoğrafı"
                        value="<?= e($permissions['customer_upload_note'] ?? '') ?>">
             </div>
-            <div class="form-group" style="margin-bottom:.75rem">
+            <div class="form-group">
                 <label for="customerGrantHours">İzin süresi</label>
                 <select id="customerGrantHours" class="form-input">
                     <?php
@@ -162,13 +134,9 @@ require __DIR__ . '/../includes/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="grant-actions grant-actions-toggle">
-                <?php if (empty($permissions['customer_upload_active'])): ?>
-                <button type="button" class="btn btn-primary" id="custGrantOpen">İzni Aç</button>
-                <?php else: ?>
-                <button type="button" class="btn btn-primary" id="custGrantOpen">Süreyi Yenile / Açık Tut</button>
-                <button type="button" class="btn btn-danger" id="custGrantClose">İzni Kapat</button>
-                <?php
+            <div class="grant-actions">
+                <button type="button" class="btn btn-primary" id="custGrantSave">Kaydet / Uygula</button>
+                <?php if (!empty($permissions['customer_upload_active'])):
                     $portalUrl = customer_portal_url($file['plate'], $permissions['customer_upload_token'] ?? null);
                     $waInvite = wa_url(
                         $file['customer_phone'] ?? null,
@@ -178,15 +146,15 @@ require __DIR__ . '/../includes/header.php';
                             (string) $file['file_number'],
                             $portalUrl,
                             (int) ($permissions['customer_upload_hours'] ?? 48),
-                            $permissions['customer_upload_note'] ?? null
+                            $permissions['customer_upload_note'] ?? null,
+                            $file['work_order_no'] ?? null
                         )
                     );
                     if ($waInvite):
                 ?>
-                <a class="btn btn-wa" href="<?= e($waInvite) ?>" target="_blank" rel="noopener"
+                <a class="btn btn-wa" id="custWaBtn" href="<?= e($waInvite) ?>" target="_blank" rel="noopener"
                    data-file-id="<?= (int)$fileId ?>" data-status="<?= e($file['status']) ?>">WhatsApp Gönder</a>
-                <?php endif; ?>
-                <?php endif; ?>
+                <?php endif; endif; ?>
             </div>
         </div>
         <?php endif; ?>
@@ -270,8 +238,9 @@ require __DIR__ . '/../includes/header.php';
                 <div class="info-section">
                     <h3>Müşteri</h3>
                     <div class="form-group"><label>Ad Soyad *</label><input class="form-input" name="customer_name" required value="<?= e($file['customer_name']) ?>"></div>
-                    <div class="form-group"><label>Telefon</label><input class="form-input" type="tel" name="customer_phone" value="<?= e($file['customer_phone'] ?? '') ?>"></div>
-                    <div class="form-group"><label>TC / VKN *</label><input class="form-input" name="tc_vkn" required value="<?= e($file['tc_vkn']) ?>"></div>
+                    <div class="form-group"><label>Telefon *</label><input class="form-input" type="tel" name="customer_phone" required value="<?= e($file['customer_phone'] ?? '') ?>"></div>
+                    <div class="form-group"><label>Adres *</label><input class="form-input" name="customer_address" required value="<?= e($file['customer_address'] ?? '') ?>"></div>
+                    <div class="form-group"><label>TC / VKN</label><input class="form-input" name="tc_vkn" value="<?= e($file['tc_vkn']) ?>"></div>
                     <div class="form-group"><label>E-posta</label><input class="form-input" type="email" name="customer_email" value="<?= e($file['customer_email'] ?? '') ?>"></div>
                 </div>
                 <div class="info-section">
@@ -302,16 +271,12 @@ require __DIR__ . '/../includes/header.php';
                     <h3>Dosya</h3>
                     <dl class="info-readonly">
                         <dt>Danışman</dt><dd><?= e($file['advisor_name']) ?></dd>
+                        <dt>Dosya No</dt><dd><?= e($file['file_number']) ?></dd>
                         <dt>Oluşturulma</dt><dd><?= date('d.m.Y H:i', strtotime($file['created_at'])) ?></dd>
-                        <dt>Atölye yükleme izni</dt>
-                        <dd>
-                            <?php if (!empty($permissions['workshop_upload_active'])): ?>
-                                Aktif · <?= e($permissions['workshop_upload_remaining'] ?? '') ?>
-                            <?php else: ?>
-                                Yok
-                            <?php endif; ?>
-                        </dd>
+                        <dt>Müşteri evrak izni</dt>
+                        <dd><?= !empty($permissions['customer_upload_active']) ? 'Açık' : 'Kapalı' ?></dd>
                     </dl>
+                    <div class="form-group"><label>İş emri no (özel)</label><input class="form-input" name="work_order_no" value="<?= e($file['work_order_no'] ?? '') ?>" placeholder="İsteğe bağlı"></div>
                     <div class="form-group"><label>Not</label><textarea class="form-input" name="note" rows="3"><?= e($file['note'] ?? '') ?></textarea></div>
                 </div>
             </div>
@@ -344,6 +309,7 @@ require __DIR__ . '/../includes/header.php';
                         <?php endif; ?>
                     </dd>
                     <dt>TC/VKN</dt><dd><?= e($file['tc_vkn']) ?></dd>
+                    <dt>Adres</dt><dd><?= e($file['customer_address'] ?? '-') ?></dd>
                     <dt>E-posta</dt><dd><?= e($file['customer_email'] ?? '-') ?></dd>
                 </dl>
             </div>
@@ -359,14 +325,14 @@ require __DIR__ . '/../includes/header.php';
                 <h3>Dosya</h3>
                 <dl>
                     <dt>Danışman</dt><dd><?= e($file['advisor_name']) ?></dd>
+                    <dt>İş emri no</dt><dd><?= e($file['work_order_no'] ?? '-') ?></dd>
                     <dt>Oluşturulma</dt><dd><?= date('d.m.Y H:i', strtotime($file['created_at'])) ?></dd>
-                    <dt>Atölye yükleme izni</dt>
+                    <dt>Müşteri evrak izni</dt>
                     <dd>
-                        <?php if (!empty($permissions['workshop_upload_active'])): ?>
-                            Aktif · <?= e($permissions['workshop_upload_remaining'] ?? '') ?>
-                            (<?= date('d.m.Y H:i', strtotime((string)$permissions['workshop_upload_until'])) ?>)
+                        <?php if (!empty($permissions['customer_upload_active'])): ?>
+                            Açık · <?= e($permissions['customer_upload_remaining'] ?? '') ?>
                         <?php else: ?>
-                            Yok
+                            Kapalı
                         <?php endif; ?>
                     </dd>
                     <dt>Not</dt><dd><?= e($file['note'] ?? '-') ?></dd>
@@ -446,36 +412,6 @@ require __DIR__ . '/../includes/header.php';
         });
     });
 
-    function grantWorkshopUpload(hours, revoke) {
-        var formData = new FormData();
-        formData.append('csrf', csrf);
-        formData.append('damage_file_id', fileId);
-        if (revoke) formData.append('revoke', '1');
-        else formData.append('hours', String(hours));
-        fetch('/api/workshop_upload_grant.php', { method: 'POST', body: formData })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.ok) {
-                    showToast(revoke ? 'İzin iptal edildi' : 'Atölye izni verildi', 'success');
-                    location.reload();
-                } else {
-                    showToast(data.error || 'Hata', 'error');
-                }
-            });
-    }
-    document.querySelectorAll('.grant-hours').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            grantWorkshopUpload(parseInt(this.dataset.hours, 10), false);
-        });
-    });
-    var revokeBtn = document.getElementById('grantRevoke');
-    if (revokeBtn) {
-        revokeBtn.addEventListener('click', function() {
-            if (!confirm('Atölye yükleme izni iptal edilsin mi?')) return;
-            grantWorkshopUpload(0, true);
-        });
-    }
-
     function grantCustomerUpload(hours, revoke) {
         var formData = new FormData();
         formData.append('csrf', csrf);
@@ -487,42 +423,37 @@ require __DIR__ . '/../includes/header.php';
             var noteEl = document.getElementById('customerGrantNote');
             if (noteEl) formData.append('note', noteEl.value || '');
         }
-        fetch('/api/customer_upload_grant.php', { method: 'POST', body: formData })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.ok) {
-                    if (revoke) {
-                        showToast('Müşteri evrak izni kapatıldı', 'success');
-                        location.reload();
-                    } else {
-                        showToast('Müşteri evrak izni açıldı', 'success');
-                        if (data.whatsapp) {
-                            showWaPrompt(data.whatsapp, data.plate);
-                            setTimeout(function() { location.reload(); }, 4000);
-                        } else {
-                            location.reload();
-                        }
-                    }
-                } else {
-                    showToast(data.error || 'Hata', 'error');
-                }
-            });
+        return fetch('/api/customer_upload_grant.php', { method: 'POST', body: formData })
+            .then(function(r) { return r.json(); });
     }
     function selectedCustomerGrantHours() {
         var sel = document.getElementById('customerGrantHours');
         return sel ? parseInt(sel.value, 10) : 48;
     }
-    var custOpen = document.getElementById('custGrantOpen');
-    if (custOpen) {
-        custOpen.addEventListener('click', function() {
-            grantCustomerUpload(selectedCustomerGrantHours(), false);
+    var custSave = document.getElementById('custGrantSave');
+    var custToggle = document.getElementById('custGrantToggle');
+    if (custSave && custToggle) {
+        custSave.addEventListener('click', function() {
+            var open = custToggle.checked;
+            grantCustomerUpload(selectedCustomerGrantHours(), !open)
+                .then(function(data) {
+                    if (data.ok) {
+                        showToast(open ? 'Müşteri evrak izni açıldı' : 'Müşteri evrak izni kapatıldı', 'success');
+                        if (open && data.whatsapp) {
+                            showWaPrompt(data.whatsapp, data.plate);
+                        }
+                        location.reload();
+                    } else {
+                        showToast(data.error || 'Hata', 'error');
+                    }
+                });
         });
-    }
-    var custClose = document.getElementById('custGrantClose');
-    if (custClose) {
-        custClose.addEventListener('click', function() {
-            if (!confirm('Müşteri evrak izni kapatılsın mı?')) return;
-            grantCustomerUpload(0, true);
+        custToggle.addEventListener('change', function() {
+            var status = document.getElementById('custGrantStatus');
+            if (status) {
+                status.textContent = this.checked ? 'Açılacak (Kaydet\'e basın)' : 'Kapatılacak (Kaydet\'e basın)';
+                status.className = this.checked ? 'grant-active' : 'grant-idle';
+            }
         });
     }
 
