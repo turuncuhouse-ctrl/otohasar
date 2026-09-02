@@ -11,11 +11,12 @@ return [
         'charset'  => 'utf8mb4',
     ],
     'app' => [
-        'name'       => 'OTOHASAR',
-        'url'        => getenv('APP_URL') ?: 'https://otohasar.neciparmagan.net.tr',
-        'timezone'   => 'Europe/Istanbul',
-        'upload_max' => 10 * 1024 * 1024, // 10MB
-        'token_ttl'  => 30 * 24 * 3600,   // 30 days
+        'name'          => 'OTOHASAR',
+        'url'           => getenv('APP_URL') ?: 'https://otohasar.neciparmagan.net.tr',
+        'timezone'      => 'Europe/Istanbul',
+        'upload_max'    => 10 * 1024 * 1024, // 10MB
+        'token_ttl'     => 30 * 24 * 3600,   // 30 days
+        'asset_version' => '7',
     ],
     'paths' => [
         'uploads' => __DIR__ . '/../public/uploads',

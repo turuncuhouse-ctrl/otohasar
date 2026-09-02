@@ -27,13 +27,14 @@
 </nav>
 <?php endif; ?>
 <div id="toastContainer" class="toast-container"></div>
-<script src="/assets/js/app.js"></script>
+<?php $assetVer = app_config()['app']['asset_version'] ?? '7'; ?>
+<script src="/assets/js/app.js?v=<?= e($assetVer) ?>"></script>
 <?php if (isset($pageScript)): ?>
 <script><?= $pageScript ?></script>
 <?php endif; ?>
 <script>
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(function(){});
+    navigator.serviceWorker.register('/sw.js?v=<?= e($assetVer) ?>').catch(function(){});
 }
 </script>
 </body>

@@ -48,12 +48,12 @@ try {
         $customerId = (int) $stmt->fetchColumn();
         $stmt = $pdo->prepare('UPDATE customers SET name = ?, phone = ?, address = ? WHERE id = ?');
         $stmt->execute([$customerName, $customerPhone, $customerAddress, $customerId]);
-        if ($brand !== '' || $model !== '') {
+        if ($brand !== '' || $model !== '' || $year || $color !== '' || $chassisNo !== '') {
             $stmt = $pdo->prepare(
                 'UPDATE vehicles SET brand = COALESCE(NULLIF(?, ""), brand), model = COALESCE(NULLIF(?, ""), model),
-                 year = ?, color = ?, chassis_no = ? WHERE id = ?'
+                 year = COALESCE(?, year), color = COALESCE(NULLIF(?, ""), color), chassis_no = COALESCE(NULLIF(?, ""), chassis_no) WHERE id = ?'
             );
-            $stmt->execute([$brand, $model, $year ?: null, $color ?: null, $chassisNo ?: null, $vehicleId]);
+            $stmt->execute([$brand, $model, $year ?: null, $color, $chassisNo, $vehicleId]);
         }
     } else {
         $customerId = null;

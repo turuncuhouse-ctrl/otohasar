@@ -8,13 +8,27 @@ function apiFetch(url, options) {
     options.credentials = 'same-origin';
     if (options.method === 'POST' && options.body instanceof FormData) {
         if (!options.body.has('csrf')) {
-            options.body.append('csrf', getCsrfToken());
+            var token = getCsrfToken();
+            if (!token) {
+                return Promise.reject({ error: 'Oturum süresi doldu — sayfayı yenileyip tekrar giriş yapın' });
+            }
+            options.body.append('csrf', token);
         }
     }
     return fetch(url, options).then(function(r) {
-        return r.json().then(function(data) {
-            if (!r.ok && data && data.error) {
-                return Promise.reject(data);
+        return r.text().then(function(text) {
+            var data = {};
+            if (text) {
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    return Promise.reject({ error: 'Sunucu yanıtı geçersiz (' + r.status + ')' });
+                }
+            }
+            if (!r.ok || data.ok === false) {
+                return Promise.reject({
+                    error: (data && data.error) ? data.error : ('İstek başarısız (' + r.status + ')')
+                });
             }
             return data;
         });

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'otohasar-shell-v5';
+const CACHE_NAME = 'otohasar-shell-v7';
 const SHELL_ASSETS = [
     '/assets/css/style.css',
     '/assets/js/app.js',
@@ -36,10 +36,31 @@ function isNetworkOnly(url) {
     return false;
 }
 
+function isMutableAsset(url) {
+    return url.pathname.indexOf('/assets/js/') === 0 || url.pathname.indexOf('/assets/css/') === 0;
+}
+
 self.addEventListener('fetch', function(event) {
     var url = new URL(event.request.url);
 
     if (isNetworkOnly(url) || event.request.method !== 'GET') {
+        return;
+    }
+
+    if (isMutableAsset(url)) {
+        event.respondWith(
+            fetch(event.request).then(function(response) {
+                if (response && response.status === 200 && response.type === 'basic') {
+                    var clone = response.clone();
+                    caches.open(CACHE_NAME).then(function(cache) {
+                        cache.put(event.request, clone);
+                    });
+                }
+                return response;
+            }).catch(function() {
+                return caches.match(event.request);
+            })
+        );
         return;
     }
 

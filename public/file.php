@@ -343,9 +343,8 @@ require __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<script>
+<?php ob_start(); ?>
 (function() {
-    var csrf = document.querySelector('meta[name="csrf-token"]').content;
     var fileId = <?= (int)$fileId ?>;
 
     document.querySelectorAll('.tab').forEach(function(tab) {
@@ -361,44 +360,38 @@ require __DIR__ . '/../includes/header.php';
     if (statusSelect) {
         statusSelect.addEventListener('change', function() {
             var formData = new FormData();
-            formData.append('csrf', csrf);
             formData.append('damage_file_id', fileId);
             formData.append('status', this.value);
-            fetch('/api/status.php', { method: 'POST', body: formData })
-                .then(function(r) { return r.json(); })
+            apiFetch('/api/status.php', { method: 'POST', body: formData })
                 .then(function(data) {
-                    if (data.ok) {
-                        showToast('Durum güncellendi', 'success');
-                        if (data.whatsapp) {
-                            showWaPrompt(data.whatsapp, data.plate);
-                            setTimeout(function() { location.reload(); }, 5000);
-                        } else {
-                            location.reload();
-                        }
+                    showToast('Durum güncellendi', 'success');
+                    if (data.whatsapp) {
+                        showWaPrompt(data.whatsapp, data.plate);
+                        setTimeout(function() { location.reload(); }, 5000);
                     } else {
-                        showToast(data.error || 'Hata', 'error');
                         location.reload();
                     }
+                })
+                .catch(function(err) {
+                    showToast((err && err.error) || 'Hata', 'error');
+                    location.reload();
                 });
         });
     }
 
     function uploadFiles(category, files) {
         var formData = new FormData();
-        formData.append('csrf', csrf);
         formData.append('damage_file_id', fileId);
         formData.append('category', category);
         for (var i = 0; i < files.length; i++) formData.append('files[]', files[i]);
 
-        fetch('/api/upload.php', { method: 'POST', body: formData })
-            .then(function(r) { return r.json(); })
+        apiFetch('/api/upload.php', { method: 'POST', body: formData })
             .then(function(data) {
-                if (data.ok) {
-                    showToast(data.uploaded.length + ' evrak yüklendi', 'success');
-                    location.reload();
-                } else {
-                    showToast(data.error || 'Yükleme hatası', 'error');
-                }
+                showToast(data.uploaded.length + ' evrak yüklendi', 'success');
+                location.reload();
+            })
+            .catch(function(err) {
+                showToast((err && err.error) || 'Yükleme hatası', 'error');
             });
     }
 
@@ -414,7 +407,6 @@ require __DIR__ . '/../includes/header.php';
 
     function grantCustomerUpload(hours, revoke) {
         var formData = new FormData();
-        formData.append('csrf', csrf);
         formData.append('damage_file_id', fileId);
         if (revoke) {
             formData.append('revoke', '1');
@@ -423,8 +415,7 @@ require __DIR__ . '/../includes/header.php';
             var noteEl = document.getElementById('customerGrantNote');
             if (noteEl) formData.append('note', noteEl.value || '');
         }
-        return fetch('/api/customer_upload_grant.php', { method: 'POST', body: formData })
-            .then(function(r) { return r.json(); });
+        return apiFetch('/api/customer_upload_grant.php', { method: 'POST', body: formData });
     }
     function selectedCustomerGrantHours() {
         var sel = document.getElementById('customerGrantHours');
@@ -437,15 +428,14 @@ require __DIR__ . '/../includes/header.php';
             var open = custToggle.checked;
             grantCustomerUpload(selectedCustomerGrantHours(), !open)
                 .then(function(data) {
-                    if (data.ok) {
-                        showToast(open ? 'Müşteri evrak izni açıldı' : 'Müşteri evrak izni kapatıldı', 'success');
-                        if (open && data.whatsapp) {
-                            showWaPrompt(data.whatsapp, data.plate);
-                        }
-                        location.reload();
-                    } else {
-                        showToast(data.error || 'Hata', 'error');
+                    showToast(open ? 'Müşteri evrak izni açıldı' : 'Müşteri evrak izni kapatıldı', 'success');
+                    if (open && data.whatsapp) {
+                        showWaPrompt(data.whatsapp, data.plate);
                     }
+                    location.reload();
+                })
+                .catch(function(err) {
+                    showToast((err && err.error) || 'Hata', 'error');
                 });
         });
         custToggle.addEventListener('change', function() {
@@ -462,19 +452,15 @@ require __DIR__ . '/../includes/header.php';
         infoForm.addEventListener('submit', function(e) {
             e.preventDefault();
             var formData = new FormData(infoForm);
-            formData.append('csrf', csrf);
             formData.append('damage_file_id', fileId);
-            fetch('/api/update_file_info.php', { method: 'POST', body: formData })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (data.ok) {
-                        showToast('Bilgiler kaydedildi', 'success');
-                        location.reload();
-                    } else {
-                        showToast(data.error || 'Kayıt hatası', 'error');
-                    }
+            apiFetch('/api/update_file_info.php', { method: 'POST', body: formData })
+                .then(function() {
+                    showToast('Bilgiler kaydedildi', 'success');
+                    location.reload();
                 })
-                .catch(function() { showToast('Bağlantı hatası', 'error'); });
+                .catch(function(err) {
+                    showToast((err && err.error) || 'Kayıt hatası', 'error');
+                });
         });
     }
 
@@ -483,20 +469,17 @@ require __DIR__ . '/../includes/header.php';
         if (!btn) return;
         if (!confirm('Bu evrak silinsin mi?')) return;
         var formData = new FormData();
-        formData.append('csrf', csrf);
         formData.append('doc_id', btn.dataset.id);
-        fetch('/api/delete_doc.php', { method: 'POST', body: formData })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.ok) {
-                    btn.closest('.doc-card').remove();
-                    showToast('Evrak silindi', 'success');
-                } else {
-                    showToast(data.error || 'Hata', 'error');
-                }
+        apiFetch('/api/delete_doc.php', { method: 'POST', body: formData })
+            .then(function() {
+                btn.closest('.doc-card').remove();
+                showToast('Evrak silindi', 'success');
+            })
+            .catch(function(err) {
+                showToast((err && err.error) || 'Hata', 'error');
             });
     });
 })();
-</script>
-
-<?php require __DIR__ . '/../includes/footer.php'; ?>
+<?php
+$pageScript = ob_get_clean();
+require __DIR__ . '/../includes/footer.php';

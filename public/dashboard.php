@@ -196,10 +196,8 @@ require __DIR__ . '/../includes/header.php';
     <?php endforeach; ?>
 </div>
 
-<script>
+<?php ob_start(); ?>
 (function() {
-    var csrfEl = document.querySelector('meta[name="csrf-token"]');
-    var csrf = csrfEl ? csrfEl.content : '';
     var userRole = <?= json_encode($currentUser['role']) ?>;
     var dragged = null;
     var filter = 'all';
@@ -290,24 +288,20 @@ require __DIR__ . '/../includes/header.php';
             }
 
             var formData = new FormData();
-            formData.append('csrf', csrf);
             formData.append('damage_file_id', fileId);
             formData.append('status', newStatus);
 
-            fetch('/api/status.php', { method: 'POST', body: formData })
-                .then(function(r) { return r.json(); })
+            apiFetch('/api/status.php', { method: 'POST', body: formData })
                 .then(function(data) {
-                    if (data.ok) {
-                        this.appendChild(dragged);
-                        dragged.dataset.status = newStatus;
-                        updateCounts();
-                        showToast('Durum güncellendi', 'success');
-                        offerWhatsApp(data.whatsapp, data.plate);
-                    } else {
-                        showToast(data.error || 'Hata oluştu', 'error');
-                    }
+                    this.appendChild(dragged);
+                    dragged.dataset.status = newStatus;
+                    updateCounts();
+                    showToast('Durum güncellendi', 'success');
+                    offerWhatsApp(data.whatsapp, data.plate);
                 }.bind(this))
-                .catch(function() { showToast('Bağlantı hatası', 'error'); });
+                .catch(function(err) {
+                    showToast((err && err.error) || 'Bağlantı hatası', 'error');
+                });
         });
     });
 
@@ -323,6 +317,6 @@ require __DIR__ . '/../includes/header.php';
         showWaPrompt(url, plate);
     }
 })();
-</script>
-
-<?php require __DIR__ . '/../includes/footer.php'; ?>
+<?php
+$pageScript = ob_get_clean();
+require __DIR__ . '/../includes/footer.php';

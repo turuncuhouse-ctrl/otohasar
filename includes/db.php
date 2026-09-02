@@ -40,7 +40,8 @@ function ensure_schema_upgrades(PDO $pdo): void
     if (!schema_column_exists($pdo, 'damage_files', 'customer_upload_until')) {
         run_migration_script($scripts . 'migrate_v4.php');
     }
-    if (!schema_column_exists($pdo, 'customers', 'address')) {
+    if (!schema_column_exists($pdo, 'customers', 'address')
+        || !schema_column_exists($pdo, 'damage_files', 'work_order_no')) {
         run_migration_script($scripts . 'migrate_v5.php');
     }
 }
