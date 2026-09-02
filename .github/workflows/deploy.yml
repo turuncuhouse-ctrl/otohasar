@@ -22,24 +22,39 @@ jobs:
             set -e
             APP=/mnt/1tb_disk/otohasar/app
             DATA=/mnt/1tb_disk/otohasar
-            mkdir -p "$DATA/data/mysql" "$DATA/data/uploads" "$APP"
-            cd "$APP"
+            PARENT=/mnt/1tb_disk/otohasar
+            REPO=https://github.com/turuncuhouse-ctrl/otohasar.git
+            BRANCH=${{ github.ref_name }}
 
-            # Eski kurulum: kod ust dizinde kalmis olabilir — app'e senkronize et
-            if [ ! -f public/assets/js/app.js ] && [ -f ../public/assets/js/app.js ]; then
+            mkdir -p "$DATA/data/mysql" "$DATA/data/uploads" "$APP"
+
+            sync_to_app() {
+              mkdir -p "$APP"
               rsync -a --delete \
                 --exclude data --exclude env --exclude app \
-                ../ "$APP/"
+                "$PARENT/" "$APP/"
+            }
+
+            if [ -d "$APP/.git" ]; then
+              cd "$APP"
+              git remote set-url origin "$REPO"
+              git fetch origin
+              git reset --hard "origin/$BRANCH"
+            elif [ -d "$PARENT/.git" ]; then
+              cd "$PARENT"
+              git remote set-url origin "$REPO"
+              git fetch origin
+              git reset --hard "origin/$BRANCH"
+              sync_to_app
+              cd "$APP"
+            else
+              rm -rf "$APP"
+              git clone --depth 1 -b "$BRANCH" "$REPO" "$APP"
+              cd "$APP"
             fi
 
-            if [ ! -d .git ]; then
-              git init -b main
-              git remote add origin https://github.com/turuncuhouse-ctrl/otohasar.git || true
-            fi
-
-            git remote set-url origin https://github.com/turuncuhouse-ctrl/otohasar.git
-            git fetch origin
-            git checkout -B main origin/main 2>/dev/null || git reset --hard origin/main
+            test -f public/assets/js/app.js
+            grep -q snapshotInputFiles public/assets/js/app.js
 
             chmod +x scripts/*.sh
-            ./scripts/auto-deploy.sh ${{ github.ref_name }}
+            ./scripts/auto-deploy.sh "$BRANCH"
