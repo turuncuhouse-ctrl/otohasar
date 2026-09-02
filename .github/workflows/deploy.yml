@@ -20,9 +20,17 @@ jobs:
           script_stop: true
           script: |
             set -e
-            APP=/mnt/1tb_disk/otohasar
-            mkdir -p "$APP/data/mysql" "$APP/data/uploads"
+            APP=/mnt/1tb_disk/otohasar/app
+            DATA=/mnt/1tb_disk/otohasar
+            mkdir -p "$DATA/data/mysql" "$DATA/data/uploads" "$APP"
             cd "$APP"
+
+            # Eski kurulum: kod ust dizinde kalmis olabilir — app'e senkronize et
+            if [ ! -f public/assets/js/app.js ] && [ -f ../public/assets/js/app.js ]; then
+              rsync -a --delete \
+                --exclude data --exclude env --exclude app \
+                ../ "$APP/"
+            fi
 
             if [ ! -d .git ]; then
               git init -b main

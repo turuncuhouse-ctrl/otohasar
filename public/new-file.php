@@ -258,10 +258,15 @@ $pageScript = <<<'JS'
     });
 
     function uploadHasarPhotos(files) {
+        var picked = snapshotInputFiles(files);
+        if (!picked.length) {
+            showToast('Dosya seçilmedi — lütfen tekrar deneyin', 'error');
+            return;
+        }
         uploadDocuments({
             getFileId: function() { return fileId; },
             category: 'hasar_foto',
-            files: files,
+            files: picked,
             previewEl: document.getElementById('uploadPreview'),
             noFileMessage: 'Önce dosyayı oluşturun'
         }).then(function(data) {
@@ -293,8 +298,9 @@ $pageScript = <<<'JS'
         if (e.dataTransfer.files.length) uploadHasarPhotos(e.dataTransfer.files);
     });
     dropInput.addEventListener('change', function() {
-        if (this.files.length) uploadHasarPhotos(this.files);
+        var files = snapshotInputFiles(this.files);
         this.value = '';
+        if (files.length) uploadHasarPhotos(files);
     });
 })();
 JS;

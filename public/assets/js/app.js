@@ -108,16 +108,20 @@ function convertHeicIfNeeded(file) {
 }
 
 function prepareUploadFiles(fileList) {
-    var files = snapshotInputFiles(fileList).filter(isLikelyImageFile);
+    var files = snapshotInputFiles(fileList);
     if (!files.length) {
-        return Promise.reject({ error: 'Geçerli görsel seçilmedi. JPEG, PNG veya WebP deneyin.' });
+        return Promise.reject({ error: 'Dosya seçilmedi — lütfen tekrar deneyin' });
     }
-    return Promise.all(files.map(convertHeicIfNeeded)).then(function(converted) {
-        return converted.filter(function(file) { return file && file.size > 0; });
-    }).catch(function(err) {
-        return Promise.reject({
-            error: (err && err.error) || 'HEIC fotoğraf dönüştürülemedi. JPEG formatında fotoğraf seçin.'
+    return Promise.all(files.map(function(file) {
+        return convertHeicIfNeeded(file).catch(function() {
+            return file;
         });
+    })).then(function(converted) {
+        var ready = converted.filter(function(file) { return file && file.size > 0; });
+        if (!ready.length) {
+            return Promise.reject({ error: 'Seçilen dosyalar okunamadı' });
+        }
+        return ready;
     });
 }
 
@@ -203,6 +207,9 @@ function uploadDocuments(opts) {
         formData.append('category', opts.category);
         files.forEach(function(file, index) {
             var uploadName = file.name || ('photo_' + (index + 1) + '.jpg');
+            if (!/\.(jpe?g|png|webp)$/i.test(uploadName)) {
+                uploadName = uploadName.replace(/\.\w+$/, '') + '.jpg';
+            }
             formData.append('files[]', file, uploadName);
         });
 

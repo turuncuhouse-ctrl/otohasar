@@ -2,7 +2,7 @@
 # Sunucuda GitHub guncellemesi (Portainer stack ile uyumlu)
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/mnt/1tb_disk/otohasar}"
+APP_DIR="${APP_DIR:-/mnt/1tb_disk/otohasar/app}"
 BRANCH="${1:-main}"
 
 cd "$APP_DIR"
@@ -12,7 +12,8 @@ echo "Dizin: $APP_DIR"
 echo "Branch: $BRANCH"
 
 if [ ! -d .git ]; then
-    echo "HATA: Bu dizin bir git reposu degil."
+    echo "HATA: $APP_DIR bir git reposu degil."
+    echo "Beklenen: /mnt/1tb_disk/otohasar/app (stack volume)"
     exit 1
 fi
 
