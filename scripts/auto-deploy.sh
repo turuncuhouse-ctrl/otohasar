@@ -19,8 +19,11 @@ if [ ! -d .git ]; then
     echo "UYARI: $APP_DIR git reposu degil — dosyalar oldugu gibi kullanilacak."
 else
     echo "[1/5] Git fetch + reset..."
-    git fetch origin || true
-    git reset --hard "origin/${BRANCH}" || true
+    if git fetch origin "$BRANCH"; then
+        git reset --hard "origin/${BRANCH}" || git reset --hard "FETCH_HEAD" || true
+    else
+        echo "UYARI: git fetch basarisiz — mevcut dosyalar korunuyor."
+    fi
 fi
 
 echo "[2/5] Versioned asset kopyalari..."
