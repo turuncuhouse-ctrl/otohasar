@@ -83,9 +83,8 @@ $pageTitle = $file['file_number'];
                 <div class="category-card small" data-category="<?= e($key) ?>">
                     <span class="cat-icon"><?= $icon ?></span>
                     <span class="cat-label"><?= e($label) ?></span>
-                    <input type="file" class="cat-input"
-                           accept="<?= $key === 'hasar_foto' ? 'image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif' : 'image/*' ?>"
-                           <?= $key === 'hasar_foto' ? 'multiple' : '' ?>>
+                    <input type="file" class="cat-input" multiple
+                           accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif">
                 </div>
                 <?php endforeach; ?>
             </div>
