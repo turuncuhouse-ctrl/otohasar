@@ -24,18 +24,35 @@ jobs:
             DATA=/mnt/1tb_disk/otohasar
             REPO=https://github.com/turuncuhouse-ctrl/otohasar.git
             BRANCH=${{ github.ref_name }}
-            TMP=$(mktemp -d)
+            ARCHIVE="https://github.com/turuncuhouse-ctrl/otohasar/archive/refs/heads/${BRANCH}.tar.gz"
 
             mkdir -p "$DATA/data/mysql" "$DATA/data/uploads" "$APP"
+            export GIT_TERMINAL_PROMPT=0
 
-            echo "=== Fresh clone to $APP ==="
-            git clone --depth 1 -b "$BRANCH" "$REPO" "$TMP/repo"
-            rsync -a --delete \
-              --exclude data --exclude env \
-              "$TMP/repo/" "$APP/"
-            rm -rf "$TMP"
+            echo "=== Sync code into $APP ==="
+            if [ -d "$APP/.git" ]; then
+              cd "$APP"
+              git remote set-url origin "$REPO" || true
+              git fetch --depth 1 origin "$BRANCH"
+              git checkout -B "$BRANCH" "FETCH_HEAD"
+              git reset --hard "FETCH_HEAD"
+              cd /
+            else
+              TMP=$(mktemp -d)
+              if git clone --depth 1 -b "$BRANCH" "$REPO" "$TMP/repo"; then
+                rsync -a --delete --exclude data --exclude env "$TMP/repo/" "$APP/"
+              else
+                echo "git clone failed — using tarball"
+                curl -fsSL "$ARCHIVE" -o "$TMP/src.tar.gz"
+                mkdir -p "$TMP/extract"
+                tar -xzf "$TMP/src.tar.gz" -C "$TMP/extract"
+                SRC=$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d | head -1)
+                rsync -a --delete --exclude data --exclude env "$SRC/" "$APP/"
+              fi
+              rm -rf "$TMP"
+            fi
 
-            # Eski kurulumlar kodu DATA kok dizininden okuyor (app/ alt klasoru yok)
+            # Eski kurulumlar kodu DATA kok dizininden okuyor
             if [ -d "$DATA/public" ] || [ -f "$DATA/Dockerfile" ]; then
               echo "=== Legacy root sync to $DATA ==="
               rsync -a --delete \
@@ -49,13 +66,14 @@ jobs:
 
             test -f "$APP/public/assets/js/app.js"
             grep -q snapshotInputFiles "$APP/public/assets/js/app.js"
+            grep -q uploadNext "$APP/public/assets/js/app.js"
 
             cd "$APP"
             chmod +x scripts/*.sh
             ./scripts/auto-deploy.sh "$BRANCH"
 
             echo "=== Post-deploy verify ==="
-            curl -sf "http://127.0.0.1:4080/assets/js/app.${ASSET_VER}.js" | grep -q snapshotInputFiles
+            curl -sf "http://127.0.0.1:4080/assets/js/app.${ASSET_VER}.js" | grep -q uploadNext
             curl -sf "http://127.0.0.1:4080/sw.js" | grep -q "otohasar-shell-v${ASSET_VER}"
 
             echo "Deploy OK"

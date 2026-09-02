@@ -16,13 +16,12 @@ echo "Data: $DATA_ROOT"
 echo "Branch: $BRANCH"
 
 if [ ! -d .git ]; then
-    echo "HATA: $APP_DIR bir git reposu degil."
-    exit 1
+    echo "UYARI: $APP_DIR git reposu degil — dosyalar oldugu gibi kullanilacak."
+else
+    echo "[1/5] Git fetch + reset..."
+    git fetch origin || true
+    git reset --hard "origin/${BRANCH}" || true
 fi
-
-echo "[1/5] Git fetch + reset..."
-git fetch origin
-git reset --hard "origin/${BRANCH}"
 
 echo "[2/5] Versioned asset kopyalari..."
 ASSET_VER=$(grep -oP "'asset_version'\s*=>\s*'\K[0-9]+" config/config.php || echo "14")
