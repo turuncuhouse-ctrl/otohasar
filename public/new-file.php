@@ -298,9 +298,11 @@ $pageScript = <<<'JS'
         if (e.dataTransfer.files.length) uploadHasarPhotos(e.dataTransfer.files);
     });
     dropInput.addEventListener('change', function() {
-        var files = snapshotInputFiles(this.files);
-        this.value = '';
-        if (files.length) uploadHasarPhotos(files);
+        var inputEl = this;
+        readInputFiles(inputEl).then(function(files) {
+            inputEl.value = '';
+            if (files.length) uploadHasarPhotos(files);
+        });
     });
 })();
 JS;

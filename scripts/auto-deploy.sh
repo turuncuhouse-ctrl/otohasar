@@ -26,13 +26,16 @@ sed -i 's/\r$//' docker/entrypoint.sh 2>/dev/null || true
 find scripts -name '*.sh' -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
 
 echo "[3/4] Container yeniden baslatiliyor..."
-if docker restart otohasar_php otohasar_nginx 2>/dev/null; then
-    true
-elif sudo docker restart otohasar_php otohasar_nginx 2>/dev/null; then
-    true
-else
-    echo "UYARI: Container restart edilemedi (belki henuz yok)."
-fi
+docker service update --force otohasar_php 2>/dev/null \
+  || sudo docker service update --force otohasar_php 2>/dev/null \
+  || docker restart otohasar_php 2>/dev/null \
+  || sudo docker restart otohasar_php 2>/dev/null \
+  || true
+docker service update --force otohasar_nginx 2>/dev/null \
+  || sudo docker service update --force otohasar_nginx 2>/dev/null \
+  || docker restart otohasar_nginx 2>/dev/null \
+  || sudo docker restart otohasar_nginx 2>/dev/null \
+  || true
 
 # Ensure zip inside running PHP container (idempotent)
 echo "[3b/4] php-zip kontrol..."

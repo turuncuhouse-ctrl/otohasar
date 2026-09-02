@@ -10,7 +10,7 @@ jobs:
     name: Sunucuya otomatik güncelle
     runs-on: ubuntu-latest
     steps:
-      - name: SSH ile git pull + restart
+      - name: SSH ile deploy
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -22,39 +22,24 @@ jobs:
             set -e
             APP=/mnt/1tb_disk/otohasar/app
             DATA=/mnt/1tb_disk/otohasar
-            PARENT=/mnt/1tb_disk/otohasar
             REPO=https://github.com/turuncuhouse-ctrl/otohasar.git
             BRANCH=${{ github.ref_name }}
+            TMP=$(mktemp -d)
 
             mkdir -p "$DATA/data/mysql" "$DATA/data/uploads" "$APP"
 
-            sync_to_app() {
-              mkdir -p "$APP"
-              rsync -a --delete \
-                --exclude data --exclude env --exclude app \
-                "$PARENT/" "$APP/"
-            }
+            echo "=== Fresh clone to $APP ==="
+            git clone --depth 1 -b "$BRANCH" "$REPO" "$TMP/repo"
+            rsync -a --delete \
+              --exclude data --exclude env \
+              "$TMP/repo/" "$APP/"
+            rm -rf "$TMP"
 
-            if [ -d "$APP/.git" ]; then
-              cd "$APP"
-              git remote set-url origin "$REPO"
-              git fetch origin
-              git reset --hard "origin/$BRANCH"
-            elif [ -d "$PARENT/.git" ]; then
-              cd "$PARENT"
-              git remote set-url origin "$REPO"
-              git fetch origin
-              git reset --hard "origin/$BRANCH"
-              sync_to_app
-              cd "$APP"
-            else
-              rm -rf "$APP"
-              git clone --depth 1 -b "$BRANCH" "$REPO" "$APP"
-              cd "$APP"
-            fi
+            test -f "$APP/public/assets/js/app.js"
+            grep -q snapshotInputFiles "$APP/public/assets/js/app.js"
 
-            test -f public/assets/js/app.js
-            grep -q snapshotInputFiles public/assets/js/app.js
-
+            cd "$APP"
             chmod +x scripts/*.sh
             ./scripts/auto-deploy.sh "$BRANCH"
+
+            echo "Deploy OK — $(head -1 public/assets/js/app.js | wc -c) byte app.js header"

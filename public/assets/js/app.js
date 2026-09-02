@@ -12,34 +12,49 @@ function apiUpload(url, formData, onProgress) {
         formData.append('csrf', token);
     }
 
-    return new Promise(function(resolve, reject) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', url);
-        xhr.withCredentials = true;
-        xhr.upload.onprogress = function(e) {
-            if (e.lengthComputable && onProgress) {
-                onProgress(Math.round((e.loaded / e.total) * 100));
-            }
-        };
-        xhr.onload = function() {
-            var data = {};
-            try {
-                data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-            } catch (err) {
-                reject({ error: 'Sunucu yanıtı geçersiz (' + xhr.status + ')' });
-                return;
-            }
-            if (xhr.status >= 200 && xhr.status < 300 && data.ok !== false) {
-                resolve(data);
-            } else {
-                reject({ error: (data && data.error) ? data.error : ('Yükleme başarısız (' + xhr.status + ')') });
-            }
-        };
-        xhr.onerror = function() {
-            reject({ error: 'Bağlantı hatası' });
-        };
-        xhr.send(formData);
-    });
+    if (typeof XMLHttpRequest !== 'undefined' && onProgress) {
+        return new Promise(function(resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', url);
+            xhr.withCredentials = true;
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    onProgress(Math.round((e.loaded / e.total) * 100));
+                }
+            };
+            xhr.onload = function() {
+                try {
+                    resolve(parseUploadResponse(xhr.status, xhr.responseText));
+                } catch (err) {
+                    reject(err);
+                }
+            };
+            xhr.onerror = function() { reject({ error: 'Bağlantı hatası' }); };
+            xhr.send(formData);
+        });
+    }
+
+    return fetch(url, { method: 'POST', body: formData, credentials: 'same-origin' })
+        .then(function(r) {
+            return r.text().then(function(text) {
+                return parseUploadResponse(r.status, text);
+            });
+        });
+}
+
+function parseUploadResponse(status, text) {
+    var data = {};
+    if (text) {
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            throw { error: 'Sunucu yanıtı geçersiz (' + status + ')' };
+        }
+    }
+    if (status >= 200 && status < 300 && data.ok !== false) {
+        return data;
+    }
+    throw { error: (data && data.error) ? data.error : ('Yükleme başarısız (' + status + ')') };
 }
 
 function snapshotInputFiles(fileList) {
@@ -52,6 +67,21 @@ function snapshotInputFiles(fileList) {
         }
     }
     return files;
+}
+
+function readInputFiles(input, retries) {
+    retries = retries || 5;
+    return new Promise(function(resolve) {
+        function attempt(left) {
+            var files = snapshotInputFiles(input.files);
+            if (files.length || left <= 0) {
+                resolve(files);
+                return;
+            }
+            setTimeout(function() { attempt(left - 1); }, 120);
+        }
+        attempt(retries);
+    });
 }
 
 function isHeicFile(file) {
@@ -77,7 +107,7 @@ function loadHeic2Any() {
     if (heic2anyPromise) return heic2anyPromise;
     heic2anyPromise = new Promise(function(resolve, reject) {
         var script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+        script.src = '/assets/js/heic2any.min.js?v=12';
         script.async = true;
         script.onload = function() {
             if (window.heic2any) resolve(window.heic2any);
@@ -206,11 +236,18 @@ function uploadDocuments(opts) {
         formData.append('damage_file_id', fileId);
         formData.append('category', opts.category);
         files.forEach(function(file, index) {
+            var uploadFile = file;
             var uploadName = file.name || ('photo_' + (index + 1) + '.jpg');
             if (!/\.(jpe?g|png|webp)$/i.test(uploadName)) {
-                uploadName = uploadName.replace(/\.\w+$/, '') + '.jpg';
+                uploadName = 'photo_' + (index + 1) + '.jpg';
             }
-            formData.append('files[]', file, uploadName);
+            if (!file.name || file.name !== uploadName) {
+                uploadFile = new File([file], uploadName, {
+                    type: file.type || 'image/jpeg',
+                    lastModified: file.lastModified || Date.now()
+                });
+            }
+            formData.append('files[]', uploadFile);
         });
 
         return apiUpload(uploadUrl, formData, function(percent) {
@@ -230,22 +267,24 @@ function uploadDocuments(opts) {
 }
 
 function startUploadFromInput(input, opts, category) {
-    var files = snapshotInputFiles(input.files);
-    input.value = '';
-    if (!files.length) {
-        showToast('Dosya seçilmedi — lütfen tekrar deneyin', 'error');
-        return;
-    }
-    uploadDocuments(Object.assign({}, opts, { category: category, files: files }))
-        .then(function(data) {
-            showToast(((data.uploaded && data.uploaded.length) || 0) + ' evrak yüklendi', 'success');
-            if (opts.reloadOnSuccess) {
-                setTimeout(function() { location.reload(); }, 900);
-            }
-        })
-        .catch(function(err) {
-            showToast((err && err.error) || 'Yükleme hatası', 'error');
-        });
+    var inputEl = input;
+    readInputFiles(inputEl).then(function(files) {
+        inputEl.value = '';
+        if (!files.length) {
+            showToast('Dosya seçilmedi — lütfen tekrar deneyin', 'error');
+            return;
+        }
+        uploadDocuments(Object.assign({}, opts, { category: category, files: files }))
+            .then(function(data) {
+                showToast(((data.uploaded && data.uploaded.length) || 0) + ' evrak yüklendi', 'success');
+                if (opts.reloadOnSuccess) {
+                    setTimeout(function() { location.reload(); }, 900);
+                }
+            })
+            .catch(function(err) {
+                showToast((err && err.error) || 'Yükleme hatası', 'error');
+            });
+    });
 }
 
 function bindCategoryUpload(opts) {

@@ -1,7 +1,5 @@
-const CACHE_NAME = 'otohasar-shell-v11';
+const CACHE_NAME = 'otohasar-shell-v12';
 const SHELL_ASSETS = [
-    '/assets/css/style.css',
-    '/assets/js/app.js',
     '/assets/icons/icon-192.png',
     '/assets/icons/icon-512.png',
     '/manifest.json'
@@ -32,12 +30,10 @@ function isNetworkOnly(url) {
     if (url.pathname.startsWith('/api/')) return true;
     if (url.pathname.startsWith('/uploads/')) return true;
     if (url.pathname.startsWith('/musteri/')) return true;
+    if (url.pathname.startsWith('/assets/js/')) return true;
+    if (url.pathname.startsWith('/assets/css/')) return true;
     if (url.pathname.endsWith('.php')) return true;
     return false;
-}
-
-function isMutableAsset(url) {
-    return url.pathname.indexOf('/assets/js/') === 0 || url.pathname.indexOf('/assets/css/') === 0;
 }
 
 self.addEventListener('fetch', function(event) {
@@ -47,37 +43,9 @@ self.addEventListener('fetch', function(event) {
         return;
     }
 
-    if (isMutableAsset(url)) {
-        event.respondWith(
-            fetch(event.request).then(function(response) {
-                if (response && response.status === 200 && response.type === 'basic') {
-                    var clone = response.clone();
-                    caches.open(CACHE_NAME).then(function(cache) {
-                        cache.put(event.request, clone);
-                    });
-                }
-                return response;
-            }).catch(function() {
-                return caches.match(event.request);
-            })
-        );
-        return;
-    }
-
     event.respondWith(
         caches.match(event.request).then(function(cached) {
-            var fetched = fetch(event.request).then(function(response) {
-                if (response && response.status === 200 && response.type === 'basic') {
-                    var clone = response.clone();
-                    caches.open(CACHE_NAME).then(function(cache) {
-                        cache.put(event.request, clone);
-                    });
-                }
-                return response;
-            }).catch(function() {
-                return cached;
-            });
-            return cached || fetched;
+            return cached || fetch(event.request);
         })
     );
 });
