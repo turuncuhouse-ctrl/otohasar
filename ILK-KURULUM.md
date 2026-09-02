@@ -40,7 +40,7 @@ chmod +x scripts/*.sh
 
 İlk build 2-5 dakika sürebilir. Bittiğinde:
 
-**http://SUNUCU_IP:4080** → `hasardanismandemo` / `1234`
+**http://SUNUCU_IP:4080** → `admin` / `1234`
 
 ---
 
@@ -119,7 +119,7 @@ otohasar.neciparmagan.net.tr {
 
 ## Şifreler
 
-Uygulama demo: `hasardanismandemo` / `1234`
+Uygulama: `admin` / `1234` (Sistem Admin — şifreyi değiştirin)
 
 Veritabanı: `deploy/SIFRELER.txt`
 

@@ -314,7 +314,8 @@ require __DIR__ . '/../includes/header.php';
                     <dl class="info-readonly">
                         <dt>Danışman</dt><dd><?= e($file['advisor_name']) ?></dd>
                         <dt>Dosya No</dt><dd><?= e($file['file_number']) ?></dd>
-                        <dt>Oluşturulma</dt><dd><?= date('d.m.Y H:i', strtotime($file['created_at'])) ?></dd>
+                        <dt>Oluşturulma</dt><dd><?= e(format_datetime_tr($file['created_at'] ?? null)) ?></dd>
+                        <dt>Bu duruma geçiş</dt><dd><?= e(format_datetime_tr($file['status_changed_at'] ?? $file['created_at'] ?? null)) ?></dd>
                         <dt>Müşteri evrak izni</dt>
                         <dd><?= !empty($permissions['customer_upload_active']) ? 'Açık' : 'Kapalı' ?></dd>
                     </dl>
@@ -368,7 +369,8 @@ require __DIR__ . '/../includes/header.php';
                 <dl>
                     <dt>Danışman</dt><dd><?= e($file['advisor_name']) ?></dd>
                     <dt>İş emri no</dt><dd><?= e($file['work_order_no'] ?? '-') ?></dd>
-                    <dt>Oluşturulma</dt><dd><?= date('d.m.Y H:i', strtotime($file['created_at'])) ?></dd>
+                    <dt>Oluşturulma</dt><dd><?= e(format_datetime_tr($file['created_at'] ?? null)) ?></dd>
+                    <dt>Bu duruma geçiş</dt><dd><?= e(format_datetime_tr($file['status_changed_at'] ?? $file['created_at'] ?? null)) ?></dd>
                     <dt>Müşteri evrak izni</dt>
                     <dd>
                         <?php if (!empty($permissions['customer_upload_active'])): ?>

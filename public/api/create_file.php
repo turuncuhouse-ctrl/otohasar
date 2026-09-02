@@ -92,8 +92,8 @@ try {
     $fileNumber = generate_file_number($pdo);
 
     $stmt = $pdo->prepare(
-        'INSERT INTO damage_files (vehicle_id, advisor_id, file_number, work_order_no, insurance_company, policy_no, claim_no, note)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO damage_files (vehicle_id, advisor_id, file_number, work_order_no, insurance_company, policy_no, claim_no, note, status_changed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())'
     );
     $stmt->execute([
         $vehicleId,

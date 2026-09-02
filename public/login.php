@@ -45,24 +45,6 @@ require __DIR__ . '/../includes/header.php';
             <button type="submit" class="btn btn-primary btn-block">Giriş Yap</button>
         </form>
         <p class="portal-login-link"><a href="/musteri/">Müşteri: plaka ile durum sorgula</a></p>
-        <div class="demo-chips">
-            <p class="demo-label">Demo Hesaplar (şifre: 1234)</p>
-            <div class="chip-group">
-                <button type="button" class="chip" data-user="admindemo">Admin (sistem ayarları)</button>
-                <button type="button" class="chip" data-user="yoneticidemo">Yönetici (dosyalar)</button>
-                <button type="button" class="chip" data-user="hasardanismandemo">Danışman — Ahmet</button>
-                <button type="button" class="chip" data-user="hasardanisman2demo">Danışman — Burak</button>
-                <button type="button" class="chip" data-user="atolyedemo">Atölye — Mehmet</button>
-            </div>
-        </div>
     </div>
 </div>
-<script>
-document.querySelectorAll('.chip').forEach(function(chip) {
-    chip.addEventListener('click', function() {
-        document.getElementById('username').value = this.dataset.user;
-        document.getElementById('password').value = '1234';
-    });
-});
-</script>
 <?php require __DIR__ . '/../includes/footer.php'; ?>

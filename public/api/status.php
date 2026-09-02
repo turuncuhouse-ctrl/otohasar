@@ -45,7 +45,7 @@ if ($oldStatus === $newStatus) {
 $oldLabel = status_labels()[$oldStatus];
 $newLabel = status_labels()[$newStatus];
 
-$stmt = $pdo->prepare('UPDATE damage_files SET status = ?, note = COALESCE(NULLIF(?, ""), note) WHERE id = ?');
+$stmt = $pdo->prepare('UPDATE damage_files SET status = ?, note = COALESCE(NULLIF(?, ""), note), status_changed_at = NOW() WHERE id = ?');
 $stmt->execute([$newStatus, $note, $fileId]);
 
 add_file_log($pdo, $fileId, (int) $user['id'], "Durum $oldLabel → $newLabel");
@@ -61,6 +61,7 @@ $waText = wa_status_message(
 json_response([
     'ok'       => true,
     'status'   => $newStatus,
+    'status_changed_at' => date('Y-m-d H:i:s'),
     'whatsapp' => wa_url($file['customer_phone'] ?? null, $waText),
     'plate'    => $file['plate'] ?? '',
 ]);

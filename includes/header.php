@@ -41,11 +41,12 @@ $assetVer = asset_version();
             <?php if ($role === 'admin'): ?>
             <a href="/admin/" class="nav-link<?= ($activeNav ?? '') === 'admin' ? ' active' : '' ?>">Sistem Ayarları</a>
             <?php endif; ?>
+            <a href="/profile.php" class="nav-link<?= ($activeNav ?? '') === 'profile' ? ' active' : '' ?>">Şifre</a>
             <a href="/logout.php" class="nav-link nav-logout">Çıkış</a>
         </nav>
         <div class="topbar-user">
             <span class="user-badge role-<?= e($role) ?>"><?= e(role_labels()[$role] ?? $role) ?></span>
-            <span class="user-name"><?= e($currentUser['name']) ?></span>
+            <a href="/profile.php" class="user-name"><?= e($currentUser['name']) ?></a>
             <a href="/logout.php" class="btn btn-sm btn-ghost logout-desk">Çıkış</a>
         </div>
         <button class="nav-toggle" id="navToggle" aria-label="Menü">☰</button>

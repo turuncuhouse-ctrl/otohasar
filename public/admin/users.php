@@ -103,6 +103,9 @@ require __DIR__ . '/../../includes/header.php';
         <input type="hidden" name="action" value="<?= $editUser ? 'update' : 'create' ?>">
         <?php if ($editUser): ?><input type="hidden" name="id" value="<?= (int)$editUser['id'] ?>"><?php endif; ?>
         <h2><?= $editUser ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı' ?></h2>
+        <?php if (!$editUser): ?>
+        <p class="form-hint">Servis Yöneticisi (dosya yönetimi) veya Hasar Danışmanı / Atölye hesabı oluşturun.</p>
+        <?php endif; ?>
         <div class="form-group"><label>Ad Soyad</label><input class="form-input" name="name" required value="<?= e($editUser['name'] ?? '') ?>"></div>
         <div class="form-group"><label>Kullanıcı Adı</label><input class="form-input" name="username" required value="<?= e($editUser['username'] ?? '') ?>"></div>
         <div class="form-group"><label>E-posta</label><input class="form-input" type="email" name="email" required value="<?= e($editUser['email'] ?? '') ?>"></div>

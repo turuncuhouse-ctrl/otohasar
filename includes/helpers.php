@@ -8,6 +8,32 @@ function e(?string $value): string
     return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/** Format datetime for UI: 02.09.2026 23:15 */
+function format_datetime_tr(?string $value): string
+{
+    if ($value === null || $value === '' || $value === '0000-00-00 00:00:00') {
+        return '—';
+    }
+    $ts = strtotime($value);
+    if ($ts === false) {
+        return '—';
+    }
+    return date('d.m.Y H:i', $ts);
+}
+
+/** Short date for dense lists: 02.09.26 23:15 */
+function format_datetime_short(?string $value): string
+{
+    if ($value === null || $value === '' || $value === '0000-00-00 00:00:00') {
+        return '—';
+    }
+    $ts = strtotime($value);
+    if ($ts === false) {
+        return '—';
+    }
+    return date('d.m.y H:i', $ts);
+}
+
 function json_response(array $data, int $code = 200): never
 {
     http_response_code($code);

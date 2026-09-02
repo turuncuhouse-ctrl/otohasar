@@ -12,7 +12,7 @@ if ($currentUser['role'] !== 'advisor') {
     $scope = 'all';
 }
 
-$sql = "SELECT df.id, df.file_number, df.status, df.insurance_company, df.created_at, df.advisor_id,
+$sql = "SELECT df.id, df.file_number, df.status, df.insurance_company, df.created_at, df.status_changed_at, df.advisor_id,
                v.plate, v.brand, v.model,
                c.name AS customer_name, c.phone AS customer_phone,
                u.name AS advisor_name,
@@ -74,6 +74,8 @@ function render_file_row(array $card): string
     );
     $statusLabel = status_labels()[$card['status']] ?? $card['status'];
     $color = status_colors()[$card['status']] ?? '';
+    $opened = format_datetime_short($card['created_at'] ?? null);
+    $statusAt = format_datetime_short($card['status_changed_at'] ?? $card['created_at'] ?? null);
 
     return '<article class="file-row" data-id="' . (int)$card['id'] . '" data-status="' . e($card['status']) . '">'
         . '<a class="file-row-main" href="/file.php?id=' . (int)$card['id'] . '">'
@@ -87,6 +89,10 @@ function render_file_row(array $card): string
         . '<div class="file-row-meta">' . e($card['customer_name'])
         . ' · 📎 ' . (int)$card['doc_count']
         . ( $card['insurance_company'] ? ' · ' . e($card['insurance_company']) : '' )
+        . '</div>'
+        . '<div class="file-row-dates">'
+        . '<span title="Dosya açılış">Açılış: ' . e($opened) . '</span>'
+        . '<span title="Bu duruma geçiş">Durum: ' . e($statusAt) . '</span>'
         . '</div>'
         . '</div></a>'
         . '<div class="file-row-actions">' . $wa
@@ -175,7 +181,10 @@ require __DIR__ . '/../includes/header.php';
             <span class="kanban-count"><?= count($board[$status]) ?></span>
         </div>
         <div class="kanban-cards" data-status="<?= e($status) ?>">
-            <?php foreach ($board[$status] as $card): ?>
+            <?php foreach ($board[$status] as $card):
+                $opened = format_datetime_short($card['created_at'] ?? null);
+                $statusAt = format_datetime_short($card['status_changed_at'] ?? $card['created_at'] ?? null);
+            ?>
             <div class="kanban-card" draggable="true" data-id="<?= (int)$card['id'] ?>" data-status="<?= e($card['status']) ?>">
                 <a href="/file.php?id=<?= (int)$card['id'] ?>" class="card-link">
                     <?= plate_badge_html($card['plate']) ?>
@@ -186,12 +195,15 @@ require __DIR__ . '/../includes/header.php';
                         <span class="card-docs">📎 <?= (int)$card['doc_count'] ?></span>
                         <span class="card-insurance"><?= e($card['insurance_company']) ?></span>
                     </div>
+                    <div class="card-dates">
+                        <span title="Dosya açılış">Açılış <?= e($opened) ?></span>
+                        <span title="Bu duruma geçiş">Durum <?= e($statusAt) ?></span>
+                    </div>
                     <div class="card-advisor"><?= e($card['advisor_name']) ?></div>
                 </a>
                 <?= wa_button_html($card['customer_phone'] ?? null, $card['customer_name'], $card['plate'], $card['file_number'], $card['status'], (int)$card['id']) ?>
             </div>
-            <?php endforeach; ?>
-        </div>
+            <?php endforeach; ?>        </div>
     </div>
     <?php endforeach; ?>
 </div>
@@ -295,6 +307,16 @@ require __DIR__ . '/../includes/header.php';
                 .then(function(data) {
                     this.appendChild(dragged);
                     dragged.dataset.status = newStatus;
+                    var dateEl = dragged.querySelector('.card-dates span:last-child');
+                    if (dateEl && data.status_changed_at) {
+                        var d = new Date(data.status_changed_at.replace(' ', 'T'));
+                        if (!isNaN(d.getTime())) {
+                            var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+                            var label = pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + String(d.getFullYear()).slice(2)
+                                + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                            dateEl.textContent = 'Durum ' + label;
+                        }
+                    }
                     updateCounts();
                     showToast('Durum güncellendi', 'success');
                     offerWhatsApp(data.whatsapp, data.plate);

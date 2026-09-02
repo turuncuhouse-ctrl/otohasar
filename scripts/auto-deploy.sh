@@ -76,7 +76,7 @@ docker restart otohasar_php 2>/dev/null || sudo docker restart otohasar_php 2>/d
 
 echo "[4c/5] Migrations..."
 sleep 5
-for migrate in migrate_v2.php migrate_v3.php migrate_v4.php migrate_v5.php migrate_v6.php migrate_v7.php; do
+for migrate in migrate_v2.php migrate_v3.php migrate_v4.php migrate_v5.php migrate_v6.php migrate_v7.php migrate_v8.php; do
     docker exec otohasar_php php "/var/www/scripts/$migrate" 2>/dev/null \
         || sudo docker exec otohasar_php php "/var/www/scripts/$migrate" 2>/dev/null \
         || true

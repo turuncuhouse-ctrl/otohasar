@@ -167,9 +167,7 @@ docker stack rm otohasar
 
 | Kullanıcı | Rol |
 |-----------|-----|
-| `hasardanismandemo` | Danışman |
-| `yoneticidemo` | Yönetici |
-| `atolyedemo` | Atölye |
+| `admin` | Sistem Admin |
 
 ---
 

@@ -36,7 +36,7 @@ chmod +x scripts/*.sh
 ./scripts/docker-install.sh
 ```
 
-Erişim: **http://SUNUCU_IP:4080** — `hasardanismandemo` / `1234`
+Erişim: **http://SUNUCU_IP:4080** — `admin` / `1234` (ilk girişten sonra şifreyi değiştirin)
 
 ## GitHub otomatik güncelleme
 
@@ -53,16 +53,13 @@ php -S 0.0.0.0:8000 -t public
 
 Tarayıcıda açın: **http://localhost:8000**
 
-## Demo Hesaplar
+## İlk Giriş
 
-Tüm hesapların şifresi: **1234**
-
-| Kullanıcı Adı | Ad | Rol |
+| Kullanıcı Adı | Şifre | Rol |
 |---|---|---|
-| `hasardanismandemo` | Ahmet Yılmaz | Hasar Danışmanı |
-| `hasardanisman2demo` | Burak Şahin | Hasar Danışmanı |
-| `yoneticidemo` | Elif Kaya | Servis Yöneticisi |
-| `atolyedemo` | Mehmet Demir | Atölye Personeli |
+| `admin` | `1234` | Sistem Admin |
+
+Sistem Admin → **Sistem Ayarları → Kullanıcılar** üzerinden Servis Yöneticisi, Hasar Danışmanı ve Atölye hesapları oluşturur. Şifre **Hesabım** sayfasından değiştirilir.
 
 ## Domain Kurulumu
 

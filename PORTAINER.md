@@ -72,7 +72,7 @@ Portainer → **Containers** — şunlar **running** olmalı:
 | `otohasar_nginx` | running |
 
 Tarayıcı: **http://SUNUCU_IP:4080**  
-Giriş: `hasardanismandemo` / `1234`
+Giriş: `admin` / `1234` (sonra şifreyi değiştirin)
 
 ---
 

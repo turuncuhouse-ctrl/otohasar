@@ -126,18 +126,17 @@ if (!table_exists($pdo, 'insurance_companies')) {
     echo "OK insurance_companies\n";
 }
 
-// Ensure admin user
-$stmt = $pdo->prepare("SELECT id FROM users WHERE username = 'admindemo'");
+// Ensure admin user (production username). migrate_v8 renames admindemo → admin if needed.
+$stmt = $pdo->prepare("SELECT id FROM users WHERE username IN ('admin', 'admindemo') LIMIT 1");
 $stmt->execute();
 if (!$stmt->fetch()) {
     $hash = password_hash('1234', PASSWORD_BCRYPT);
     $pdo->prepare(
         "INSERT INTO users (name, username, role, email, phone, password) VALUES (?,?,?,?,?,?)"
-    )->execute(['Sistem Admin', 'admindemo', 'admin', 'admin@otohasar.demo', '05320000000', $hash]);
-    echo "OK admindemo user\n";
+    )->execute(['Sistem Admin', 'admin', 'admin', 'admin@otohasar.local', null, $hash]);
+    echo "OK admin user\n";
 } else {
-    // Ensure role is admin if exists
-    $pdo->exec("UPDATE users SET role='admin' WHERE username='admindemo'");
+    $pdo->exec("UPDATE users SET role='admin' WHERE username IN ('admin', 'admindemo')");
 }
 
 echo "Migration v2 complete.\n";

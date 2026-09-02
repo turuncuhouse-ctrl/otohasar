@@ -54,6 +54,9 @@ php /var/www/scripts/migrate_v2.php || true
 php /var/www/scripts/migrate_v3.php || true
 php /var/www/scripts/migrate_v4.php || true
 php /var/www/scripts/migrate_v5.php || true
+php /var/www/scripts/migrate_v6.php || true
+php /var/www/scripts/migrate_v7.php || true
+php /var/www/scripts/migrate_v8.php || true
 
 # ZIP extension for document downloads (required)
 ensure_zip() {

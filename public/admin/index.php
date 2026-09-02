@@ -33,7 +33,9 @@ require __DIR__ . '/../../includes/header.php';
 
 <p class="dash-sub" style="margin-bottom:1.25rem">
     Sistem ayarları: kullanıcılar, evrak kategorileri, dosya durumları ve anlaşmalı sigorta şirketleri.
+    <br>Önce <a href="/admin/users.php">Kullanıcılar</a>dan Servis Yöneticisi ve Hasar Danışmanı atayın.
     <br>Dosya / hasar işlemleri için <strong>Servis Yöneticisi</strong> hesabını kullanın.
+    <br>Şifrenizi <a href="/profile.php">Hesabım</a> sayfasından değiştirebilirsiniz.
 </p>
 
 <div class="admin-grid">

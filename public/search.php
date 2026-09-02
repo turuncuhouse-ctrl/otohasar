@@ -36,7 +36,7 @@ if ($searched) {
         $params[] = $insurance;
     }
 
-    $sql = 'SELECT df.id, df.file_number, df.status, df.insurance_company, df.updated_at,
+    $sql = 'SELECT df.id, df.file_number, df.status, df.insurance_company, df.created_at, df.status_changed_at, df.updated_at,
                    v.plate, v.brand, v.model,
                    c.name AS customer_name, c.phone AS customer_phone,
                    u.name AS advisor_name,
@@ -104,6 +104,7 @@ require __DIR__ . '/../includes/header.php';
                 <span><?= e($r['brand'] . ' ' . $r['model']) ?> · 📎 <?= (int)$r['doc_count'] ?> evrak</span>
                 <span><?= e($r['customer_name']) ?> · <?= e($r['customer_phone'] ?? '') ?></span>
                 <span><?= e($r['insurance_company'] ?? '-') ?> · <?= e($r['advisor_name']) ?></span>
+                <span class="result-dates">Açılış <?= e(format_datetime_short($r['created_at'] ?? null)) ?> · Durum <?= e(format_datetime_short($r['status_changed_at'] ?? $r['created_at'] ?? null)) ?></span>
             </div>
         </a>
         <div class="search-result-actions">
