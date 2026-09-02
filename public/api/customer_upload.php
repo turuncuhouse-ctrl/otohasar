@@ -27,8 +27,13 @@ if (!is_customer_upload_granted($file)) {
     json_error('Yükleme izniniz yok veya süresi dolmuş. Lütfen servisinizle iletişime geçin.', 403);
 }
 
-if (empty($_FILES['files'])) {
-    json_error('Dosya seçilmedi');
+$incoming = normalize_uploaded_files($_FILES['files'] ?? []);
+if (!$incoming) {
+    json_error('Dosya seçilmedi — lütfen galeriden fotoğraf seçip tekrar deneyin');
+}
+
+if (count($incoming) > 8) {
+    json_error('En fazla 8 dosya yüklenebilir');
 }
 
 $pdo = db();
@@ -38,22 +43,22 @@ ensure_upload_guards($uploadDir);
 
 $uploaded = [];
 $errors   = [];
-$fileCount = is_array($_FILES['files']['name'] ?? null) ? count($_FILES['files']['name']) : 0;
 
-if ($fileCount > 8) {
-    json_error('En fazla 8 dosya yüklenebilir');
-}
-
-for ($i = 0; $i < $fileCount; $i++) {
-    $error = $_FILES['files']['error'][$i];
+foreach ($incoming as $item) {
+    $origName = $item['name'];
+    $error = $item['error'];
     if ($error !== UPLOAD_ERR_OK) {
-        $errors[] = 'Yükleme hatası: ' . $_FILES['files']['name'][$i];
+        $errors[] = upload_error_message($error, $origName);
         continue;
     }
 
-    $tmpPath  = $_FILES['files']['tmp_name'][$i];
-    $origName = $_FILES['files']['name'][$i];
-    $size     = (int) $_FILES['files']['size'][$i];
+    $tmpPath = $item['tmp_name'];
+    $size    = $item['size'];
+
+    if ($size <= 0) {
+        $errors[] = ($origName !== '' ? $origName . ': ' : '') . 'Boş dosya';
+        continue;
+    }
 
     if ($size > $config['app']['upload_max']) {
         $errors[] = "$origName: 10MB limiti aşıldı";

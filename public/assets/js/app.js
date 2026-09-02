@@ -42,26 +42,83 @@ function apiUpload(url, formData, onProgress) {
     });
 }
 
-function isImageFile(file) {
-    if (!file) return false;
-    var type = (file.type || '').toLowerCase();
-    if (type === '' || type === 'application/octet-stream') return true;
-    if (type.indexOf('image/') === 0) return true;
-    var name = (file.name || '').toLowerCase();
-    return /\.(jpe?g|png|webp|heic|heif)$/.test(name);
+function snapshotInputFiles(fileList) {
+    var files = [];
+    if (!fileList || !fileList.length) return files;
+    for (var i = 0; i < fileList.length; i++) {
+        var file = fileList[i];
+        if (file && file.size > 0) {
+            files.push(file);
+        }
+    }
+    return files;
 }
 
-function filterImageFiles(files) {
-    var list = Array.from(files || []).filter(isImageFile);
-    var heic = list.filter(function(file) {
-        var type = (file.type || '').toLowerCase();
-        var name = (file.name || '').toLowerCase();
-        return type.indexOf('heic') !== -1 || type.indexOf('heif') !== -1 || /\.heic$/.test(name) || /\.heif$/.test(name);
+function isHeicFile(file) {
+    var type = (file.type || '').toLowerCase();
+    var name = (file.name || '').toLowerCase();
+    return type.indexOf('heic') !== -1 || type.indexOf('heif') !== -1
+        || /\.heic$/.test(name) || /\.heif$/.test(name);
+}
+
+function isLikelyImageFile(file) {
+    if (!file || !(file.size > 0)) return false;
+    var type = (file.type || '').toLowerCase();
+    if (!type || type === 'application/octet-stream') return true;
+    if (type.indexOf('image/') === 0) return true;
+    if (type.indexOf('photo') !== -1) return true;
+    var name = (file.name || '').toLowerCase();
+    return /\.(jpe?g|png|webp|heic|heif|gif|bmp)$/.test(name);
+}
+
+var heic2anyPromise = null;
+function loadHeic2Any() {
+    if (window.heic2any) return Promise.resolve(window.heic2any);
+    if (heic2anyPromise) return heic2anyPromise;
+    heic2anyPromise = new Promise(function(resolve, reject) {
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+        script.async = true;
+        script.onload = function() {
+            if (window.heic2any) resolve(window.heic2any);
+            else reject(new Error('heic2any unavailable'));
+        };
+        script.onerror = function() { reject(new Error('heic2any load failed')); };
+        document.head.appendChild(script);
     });
-    if (heic.length && heic.length === list.length) {
-        return { files: list, heicOnly: true };
+    return heic2anyPromise;
+}
+
+function convertHeicIfNeeded(file) {
+    if (!isHeicFile(file)) return Promise.resolve(file);
+    return loadHeic2Any().then(function(heic2any) {
+        return heic2any({
+            blob: file,
+            toType: 'image/jpeg',
+            quality: 0.92
+        }).then(function(result) {
+            var blob = Array.isArray(result) ? result[0] : result;
+            var base = (file.name || 'photo').replace(/\.(heic|heif)$/i, '');
+            return new File([blob], base + '.jpg', {
+                type: 'image/jpeg',
+                lastModified: file.lastModified || Date.now()
+            });
+        });
+    });
+}
+
+function prepareUploadFiles(fileList) {
+    var files = snapshotInputFiles(fileList).filter(isLikelyImageFile);
+    if (!files.length) {
+        return Promise.reject({ error: 'Geçerli görsel seçilmedi. JPEG, PNG veya WebP deneyin.' });
     }
-    return { files: list, heicOnly: false };
+    return Promise.all(files.map(convertHeicIfNeeded)).then(function(converted) {
+        return converted.filter(function(file) { return file && file.size > 0; });
+    }).catch(function(err) {
+        return Promise.reject({
+            error: (err && err.error) || 'HEIC fotoğraf dönüştürülemedi. JPEG formatında fotoğraf seçin.'
+        });
+    });
 }
 
 function uploadLabel(file) {
@@ -96,82 +153,92 @@ function markPreviewDone(previewEl, success, message) {
 function uploadDocuments(opts) {
     opts = opts || {};
     var fileId = typeof opts.getFileId === 'function' ? opts.getFileId() : opts.fileId;
-    var files = Array.from(opts.files || []);
     var previewEl = opts.previewEl || null;
     var uploadUrl = opts.uploadUrl || '/api/upload.php';
 
     if (!fileId) {
         return Promise.reject({ error: opts.noFileMessage || 'Önce dosyayı oluşturun' });
     }
-    if (!files.length) {
-        return Promise.reject({ error: 'Dosya seçilmedi' });
-    }
 
-    var filtered = filterImageFiles(files);
-    files = filtered.files;
-    if (!files.length) {
-        return Promise.reject({ error: 'Geçerli görsel seçilmedi (JPEG, PNG, WebP)' });
-    }
-    if (filtered.heicOnly) {
-        return Promise.reject({
-            error: 'HEIC formatı desteklenmiyor. iPhone: Ayarlar > Kamera > Biçimler > En Uyumlu (JPEG) seçin veya JPEG fotoğraf yükleyin.'
-        });
-    }
+    return prepareUploadFiles(opts.files).then(function(files) {
+        if (!files.length) {
+            return Promise.reject({ error: 'Dosya seçilmedi' });
+        }
 
-    if (previewEl) {
-        previewEl.style.display = '';
-        files.forEach(function(file) {
-            var card = document.createElement('div');
-            card.className = 'preview-card uploading';
-            var title = document.createElement('strong');
-            title.textContent = uploadLabel(file);
-            var status = document.createElement('span');
-            status.className = 'preview-status';
-            status.textContent = 'Yükleniyor…';
-            var bar = document.createElement('div');
-            bar.className = 'progress-bar';
-            var fill = document.createElement('div');
-            fill.className = 'progress-fill';
-            fill.style.width = '8%';
-            bar.appendChild(fill);
-            var images = document.createElement('div');
-            images.className = 'preview-images';
-            card.appendChild(title);
-            card.appendChild(status);
-            card.appendChild(bar);
-            card.appendChild(images);
-            previewEl.prepend(card);
+        if (previewEl) {
+            previewEl.style.display = '';
+            files.forEach(function(file) {
+                var card = document.createElement('div');
+                card.className = 'preview-card uploading';
+                var title = document.createElement('strong');
+                title.textContent = uploadLabel(file);
+                var status = document.createElement('span');
+                status.className = 'preview-status';
+                status.textContent = 'Yükleniyor…';
+                var bar = document.createElement('div');
+                bar.className = 'progress-bar';
+                var fill = document.createElement('div');
+                fill.className = 'progress-fill';
+                fill.style.width = '8%';
+                bar.appendChild(fill);
+                var images = document.createElement('div');
+                images.className = 'preview-images';
+                card.appendChild(title);
+                card.appendChild(status);
+                card.appendChild(bar);
+                card.appendChild(images);
+                previewEl.prepend(card);
 
-            if (file.type && file.type.indexOf('image/') === 0) {
                 var img = document.createElement('img');
                 images.appendChild(img);
                 var reader = new FileReader();
                 reader.onload = function(e) { img.src = e.target.result; };
+                reader.onerror = function() {};
                 reader.readAsDataURL(file);
-            }
-        });
-    }
-
-    var formData = new FormData();
-    formData.append('damage_file_id', fileId);
-    formData.append('category', opts.category);
-    files.forEach(function(file) {
-        formData.append('files[]', file);
-    });
-
-    return apiUpload(uploadUrl, formData, function(percent) {
-        setPreviewProgress(previewEl, percent, percent >= 100 ? 'Kaydediliyor…' : ('Yükleniyor… %' + percent));
-    }).then(function(data) {
-        var count = (data.uploaded && data.uploaded.length) || 0;
-        markPreviewDone(previewEl, true, count + ' evrak yüklendi');
-        if (data.errors && data.errors.length) {
-            showToast(data.errors.join(' · '), 'error');
+            });
         }
-        return data;
+
+        var formData = new FormData();
+        formData.append('damage_file_id', fileId);
+        formData.append('category', opts.category);
+        files.forEach(function(file, index) {
+            var uploadName = file.name || ('photo_' + (index + 1) + '.jpg');
+            formData.append('files[]', file, uploadName);
+        });
+
+        return apiUpload(uploadUrl, formData, function(percent) {
+            setPreviewProgress(previewEl, percent, percent >= 100 ? 'Kaydediliyor…' : ('Yükleniyor… %' + percent));
+        }).then(function(data) {
+            var count = (data.uploaded && data.uploaded.length) || 0;
+            markPreviewDone(previewEl, true, count + ' evrak yüklendi');
+            if (data.errors && data.errors.length) {
+                showToast(data.errors.join(' · '), 'error');
+            }
+            return data;
+        });
     }).catch(function(err) {
         markPreviewDone(previewEl, false, (err && err.error) || 'Yükleme hatası');
         throw err;
     });
+}
+
+function startUploadFromInput(input, opts, category) {
+    var files = snapshotInputFiles(input.files);
+    input.value = '';
+    if (!files.length) {
+        showToast('Dosya seçilmedi — lütfen tekrar deneyin', 'error');
+        return;
+    }
+    uploadDocuments(Object.assign({}, opts, { category: category, files: files }))
+        .then(function(data) {
+            showToast(((data.uploaded && data.uploaded.length) || 0) + ' evrak yüklendi', 'success');
+            if (opts.reloadOnSuccess) {
+                setTimeout(function() { location.reload(); }, 900);
+            }
+        })
+        .catch(function(err) {
+            showToast((err && err.error) || 'Yükleme hatası', 'error');
+        });
 }
 
 function bindCategoryUpload(opts) {
@@ -179,26 +246,7 @@ function bindCategoryUpload(opts) {
         var input = card.querySelector('.cat-input');
         if (!input) return;
         input.addEventListener('change', function() {
-            if (!this.files.length) return;
-            var files = this.files;
-            var category = card.dataset.category;
-            this.value = '';
-            uploadDocuments({
-                getFileId: opts.getFileId,
-                fileId: opts.fileId,
-                category: category,
-                files: files,
-                previewEl: opts.previewEl,
-                uploadUrl: opts.uploadUrl,
-                noFileMessage: opts.noFileMessage
-            }).then(function(data) {
-                showToast(((data.uploaded && data.uploaded.length) || 0) + ' evrak yüklendi', 'success');
-                if (opts.reloadOnSuccess) {
-                    setTimeout(function() { location.reload(); }, 900);
-                }
-            }).catch(function(err) {
-                showToast((err && err.error) || 'Yükleme hatası', 'error');
-            });
+            startUploadFromInput(this, opts, card.dataset.category);
         });
     });
 }
@@ -208,25 +256,7 @@ function bindUploadPickers(opts) {
         var category = wrap.dataset.category || opts.category || 'hasar_foto';
         wrap.querySelectorAll('.upload-picker-input').forEach(function(input) {
             input.addEventListener('change', function() {
-                if (!this.files.length) return;
-                var files = this.files;
-                this.value = '';
-                uploadDocuments({
-                    getFileId: opts.getFileId,
-                    fileId: opts.fileId,
-                    category: category,
-                    files: files,
-                    previewEl: opts.previewEl,
-                    uploadUrl: opts.uploadUrl,
-                    noFileMessage: opts.noFileMessage
-                }).then(function(data) {
-                    showToast(((data.uploaded && data.uploaded.length) || 0) + ' evrak yüklendi', 'success');
-                    if (opts.reloadOnSuccess) {
-                        setTimeout(function() { location.reload(); }, 900);
-                    }
-                }).catch(function(err) {
-                    showToast((err && err.error) || 'Yükleme hatası', 'error');
-                });
+                startUploadFromInput(this, opts, category);
             });
         });
     });

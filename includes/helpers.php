@@ -215,6 +215,39 @@ function random_filename(string $ext): string
     return bin2hex(random_bytes(16)) . '.' . $ext;
 }
 
+function normalize_uploaded_files(array $field): array
+{
+    if (!isset($field['name']) || $field['name'] === '') {
+        return [];
+    }
+
+    if (!is_array($field['name'])) {
+        return [[
+            'name'     => (string) $field['name'],
+            'type'     => (string) ($field['type'] ?? ''),
+            'tmp_name' => (string) ($field['tmp_name'] ?? ''),
+            'error'    => (int) ($field['error'] ?? UPLOAD_ERR_NO_FILE),
+            'size'     => (int) ($field['size'] ?? 0),
+        ]];
+    }
+
+    $items = [];
+    foreach ($field['name'] as $i => $name) {
+        if ($name === '' || $name === null) {
+            continue;
+        }
+        $items[] = [
+            'name'     => (string) $name,
+            'type'     => (string) ($field['type'][$i] ?? ''),
+            'tmp_name' => (string) ($field['tmp_name'][$i] ?? ''),
+            'error'    => (int) ($field['error'][$i] ?? UPLOAD_ERR_NO_FILE),
+            'size'     => (int) ($field['size'][$i] ?? 0),
+        ];
+    }
+
+    return $items;
+}
+
 function validate_upload_mime(string $tmpPath, string $originalName): ?array
 {
     $allowed = [
@@ -234,6 +267,17 @@ function validate_upload_mime(string $tmpPath, string $originalName): ?array
     }
 
     if (!isset($allowed[$mime])) {
+        $info = @getimagesize($tmpPath);
+        if (is_array($info) && !empty($info[2])) {
+            $map = [
+                IMAGETYPE_JPEG => ['mime' => 'image/jpeg', 'ext' => 'jpg'],
+                IMAGETYPE_PNG  => ['mime' => 'image/png', 'ext' => 'png'],
+                IMAGETYPE_WEBP => ['mime' => 'image/webp', 'ext' => 'webp'],
+            ];
+            if (isset($map[$info[2]])) {
+                return $map[$info[2]];
+            }
+        }
         return null;
     }
 
@@ -266,6 +310,17 @@ function upload_validation_error(string $tmpPath, string $originalName): string
     }
 
     return ($originalName !== '' ? $originalName . ': ' : '') . 'Geçersiz dosya türü (JPEG, PNG, WebP)';
+}
+
+function upload_error_message(int $code, string $name): string
+{
+    $label = $name !== '' ? $name . ': ' : '';
+    return match ($code) {
+        UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => $label . 'Dosya boyutu limiti aşıldı (max 10MB)',
+        UPLOAD_ERR_PARTIAL => $label . 'Yükleme yarım kaldı, tekrar deneyin',
+        UPLOAD_ERR_NO_FILE => $label . 'Dosya seçilmedi',
+        default => $label . 'Yükleme hatası (kod ' . $code . ')',
+    };
 }
 
 function is_workshop_upload_granted(array $file): bool
