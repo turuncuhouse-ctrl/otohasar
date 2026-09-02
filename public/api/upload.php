@@ -66,7 +66,7 @@ for ($i = 0; $i < $fileCount; $i++) {
 
     $validated = validate_upload_mime($tmpPath, $origName);
     if (!$validated) {
-        $errors[] = "$origName: Geçersiz dosya türü";
+        $errors[] = upload_validation_error($tmpPath, $origName);
         continue;
     }
 
@@ -100,6 +100,10 @@ if (!empty($uploaded)) {
     $catLabel = category_labels()[$category];
     $count = count($uploaded);
     add_file_log($pdo, $fileId, (int) $user['id'], "$count evrak yüklendi ($catLabel)");
+}
+
+if (empty($uploaded)) {
+    json_error(!empty($errors) ? implode(' · ', $errors) : 'Dosya yüklenemedi');
 }
 
 json_response(['ok' => true, 'uploaded' => $uploaded, 'errors' => $errors]);

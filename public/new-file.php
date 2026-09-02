@@ -134,14 +134,20 @@ require __DIR__ . '/../includes/header.php';
             <div class="category-card" data-category="<?= e($key) ?>">
                 <span class="cat-icon"><?= $icon ?></span>
                 <span class="cat-label"><?= e($label) ?></span>
-                <input type="file" class="cat-input" accept="image/jpeg,image/png,image/webp" capture="environment"
+                <input type="file" class="cat-input" accept="image/*"
                        <?= $key === 'hasar_foto' ? 'multiple' : '' ?>>
             </div>
             <?php endforeach; ?>
         </div>
+        <div class="upload-quick-actions" data-upload-quick data-category="hasar_foto">
+            <button type="button" class="btn btn-secondary btn-sm" data-trigger="camera">📷 Kamera ile çek</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-trigger="gallery">🖼️ Galeriden seç</button>
+            <input type="file" class="sr-only" data-source="camera" accept="image/*" capture="environment" multiple>
+            <input type="file" class="sr-only" data-source="gallery" accept="image/*" multiple>
+        </div>
         <div class="dropzone" id="dropzone">
-            <p>Fotoğraf sürükleyip bırakın veya tıklayın</p>
-            <input type="file" id="dropInput" accept="image/jpeg,image/png,image/webp" multiple>
+            <p>Hasar fotoğrafı sürükleyip bırakın veya tıklayın</p>
+            <input type="file" id="dropInput" accept="image/*" multiple>
         </div>
         <div id="uploadPreview" class="upload-preview"></div>
         <a href="/dashboard.php" class="btn btn-primary btn-block btn-lg">Panoya Dön</a>
@@ -247,30 +253,30 @@ $pageScript = <<<'JS'
             });
     });
 
-    function uploadFiles(category, files) {
-        if (!fileId || !files.length) return;
-        var formData = new FormData();
-        formData.append('damage_file_id', fileId);
-        formData.append('category', category);
-        for (var i = 0; i < files.length; i++) formData.append('files[]', files[i]);
-        apiFetch('/api/upload.php', { method: 'POST', body: formData })
-            .then(function(data) {
-                if (data.uploaded && data.uploaded.length) {
-                    showToast(data.uploaded.length + ' evrak yüklendi', 'success');
-                }
-            })
-            .catch(function(err) {
-                showToast((err && err.error) || 'Yükleme hatası', 'error');
-            });
+    function uploadHasarPhotos(files) {
+        uploadDocuments({
+            getFileId: function() { return fileId; },
+            category: 'hasar_foto',
+            files: files,
+            previewEl: document.getElementById('uploadPreview'),
+            noFileMessage: 'Önce dosyayı oluşturun'
+        }).then(function(data) {
+            showToast(((data.uploaded && data.uploaded.length) || 0) + ' evrak yüklendi', 'success');
+        }).catch(function(err) {
+            showToast((err && err.error) || 'Yükleme hatası', 'error');
+        });
     }
 
-    document.querySelectorAll('.category-card').forEach(function(card) {
-        var input = card.querySelector('.cat-input');
-        card.addEventListener('click', function(e) { if (e.target !== input) input.click(); });
-        input.addEventListener('change', function() {
-            if (this.files.length) uploadFiles(card.dataset.category, this.files);
-            this.value = '';
-        });
+    bindCategoryUpload({
+        getFileId: function() { return fileId; },
+        gridSelector: '#categoryGrid',
+        previewEl: document.getElementById('uploadPreview'),
+        noFileMessage: 'Önce dosyayı oluşturun'
+    });
+    bindQuickPhotoPickers({
+        getFileId: function() { return fileId; },
+        previewEl: document.getElementById('uploadPreview'),
+        noFileMessage: 'Önce dosyayı oluşturun'
     });
 
     var dropzone = document.getElementById('dropzone');
@@ -281,10 +287,10 @@ $pageScript = <<<'JS'
     dropzone.addEventListener('drop', function(e) {
         e.preventDefault();
         this.classList.remove('drag-over');
-        if (e.dataTransfer.files.length) uploadFiles('hasar_foto', e.dataTransfer.files);
+        if (e.dataTransfer.files.length) uploadHasarPhotos(e.dataTransfer.files);
     });
     dropInput.addEventListener('change', function() {
-        if (this.files.length) uploadFiles('hasar_foto', this.files);
+        if (this.files.length) uploadHasarPhotos(this.files);
         this.value = '';
     });
 })();

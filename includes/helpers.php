@@ -218,30 +218,54 @@ function random_filename(string $ext): string
 function validate_upload_mime(string $tmpPath, string $originalName): ?array
 {
     $allowed = [
-        'image/jpeg' => 'jpg',
-        'image/png'  => 'png',
-        'image/webp' => 'webp',
+        'image/jpeg'  => 'jpg',
+        'image/jpg'   => 'jpg',
+        'image/pjpeg' => 'jpg',
+        'image/png'   => 'png',
+        'image/webp'  => 'webp',
     ];
 
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     $mime = finfo_file($finfo, $tmpPath);
     finfo_close($finfo);
 
+    if (in_array($mime, ['image/heic', 'image/heif'], true)) {
+        return null;
+    }
+
     if (!isset($allowed[$mime])) {
         return null;
     }
 
     $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-    if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
-        return null;
+    if ($ext === 'jpeg') {
+        $ext = 'jpg';
+    }
+    if ($ext === '' || !in_array($ext, ['jpg', 'png', 'webp'], true)) {
+        $ext = $allowed[$mime];
     }
 
-    $normalizedExt = $ext === 'jpeg' ? 'jpg' : $ext;
-    if ($normalizedExt !== $allowed[$mime] && !($mime === 'image/jpeg' && in_array($ext, ['jpg', 'jpeg'], true))) {
-        return null;
+    if (in_array($mime, ['image/jpeg', 'image/jpg', 'image/pjpeg'], true)) {
+        $storedMime = 'image/jpeg';
+    } else {
+        $storedMime = $mime;
     }
 
-    return ['mime' => $mime, 'ext' => $normalizedExt];
+    return ['mime' => $storedMime, 'ext' => $ext];
+}
+
+function upload_validation_error(string $tmpPath, string $originalName): string
+{
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $tmpPath);
+    finfo_close($finfo);
+
+    if (in_array($mime, ['image/heic', 'image/heif'], true)) {
+        return ($originalName !== '' ? $originalName . ': ' : '')
+            . 'HEIC formatı desteklenmiyor. Galeriden JPEG/PNG seçin veya kamerayı JPEG moduna alın.';
+    }
+
+    return ($originalName !== '' ? $originalName . ': ' : '') . 'Geçersiz dosya türü (JPEG, PNG, WebP)';
 }
 
 function is_workshop_upload_granted(array $file): bool

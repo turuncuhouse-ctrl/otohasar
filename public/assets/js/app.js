@@ -3,6 +3,228 @@ function getCsrfToken() {
     return el ? el.content : '';
 }
 
+function apiUpload(url, formData, onProgress) {
+    if (!formData.has('csrf')) {
+        var token = getCsrfToken();
+        if (!token) {
+            return Promise.reject({ error: 'Oturum süresi doldu — sayfayı yenileyip tekrar giriş yapın' });
+        }
+        formData.append('csrf', token);
+    }
+
+    return new Promise(function(resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.withCredentials = true;
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable && onProgress) {
+                onProgress(Math.round((e.loaded / e.total) * 100));
+            }
+        };
+        xhr.onload = function() {
+            var data = {};
+            try {
+                data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+            } catch (err) {
+                reject({ error: 'Sunucu yanıtı geçersiz (' + xhr.status + ')' });
+                return;
+            }
+            if (xhr.status >= 200 && xhr.status < 300 && data.ok !== false) {
+                resolve(data);
+            } else {
+                reject({ error: (data && data.error) ? data.error : ('Yükleme başarısız (' + xhr.status + ')') });
+            }
+        };
+        xhr.onerror = function() {
+            reject({ error: 'Bağlantı hatası' });
+        };
+        xhr.send(formData);
+    });
+}
+
+function uploadLabel(file) {
+    if (file.name) return file.name;
+    if (file.type) return file.type.replace('image/', '').toUpperCase() + ' fotoğraf';
+    return 'Fotoğraf';
+}
+
+function setPreviewProgress(previewEl, percent, statusText) {
+    if (!previewEl) return;
+    previewEl.querySelectorAll('.preview-card.uploading').forEach(function(card) {
+        var fill = card.querySelector('.progress-fill');
+        if (fill) {
+            fill.style.width = percent + '%';
+            fill.style.animation = 'none';
+        }
+        var status = card.querySelector('.preview-status');
+        if (status && statusText) status.textContent = statusText;
+    });
+}
+
+function markPreviewDone(previewEl, success, message) {
+    if (!previewEl) return;
+    previewEl.querySelectorAll('.preview-card.uploading').forEach(function(card) {
+        card.classList.remove('uploading');
+        card.classList.add(success ? 'success' : 'error');
+        var status = card.querySelector('.preview-status');
+        if (status) status.textContent = message;
+    });
+}
+
+function uploadDocuments(opts) {
+    opts = opts || {};
+    var fileId = typeof opts.getFileId === 'function' ? opts.getFileId() : opts.fileId;
+    var files = Array.from(opts.files || []);
+    var previewEl = opts.previewEl || null;
+    var uploadUrl = opts.uploadUrl || '/api/upload.php';
+
+    if (!fileId) {
+        return Promise.reject({ error: opts.noFileMessage || 'Önce dosyayı oluşturun' });
+    }
+    if (!files.length) {
+        return Promise.reject({ error: 'Dosya seçilmedi' });
+    }
+
+    files = files.filter(function(file) {
+        return !file.type || file.type.indexOf('image/') === 0;
+    });
+    if (!files.length) {
+        return Promise.reject({ error: 'Geçerli görsel seçilmedi (JPEG, PNG, WebP)' });
+    }
+
+    if (previewEl) {
+        previewEl.style.display = '';
+        files.forEach(function(file) {
+            var card = document.createElement('div');
+            card.className = 'preview-card uploading';
+            var title = document.createElement('strong');
+            title.textContent = uploadLabel(file);
+            var status = document.createElement('span');
+            status.className = 'preview-status';
+            status.textContent = 'Yükleniyor…';
+            var bar = document.createElement('div');
+            bar.className = 'progress-bar';
+            var fill = document.createElement('div');
+            fill.className = 'progress-fill';
+            fill.style.width = '8%';
+            bar.appendChild(fill);
+            var images = document.createElement('div');
+            images.className = 'preview-images';
+            card.appendChild(title);
+            card.appendChild(status);
+            card.appendChild(bar);
+            card.appendChild(images);
+            previewEl.prepend(card);
+
+            if (file.type && file.type.indexOf('image/') === 0) {
+                var img = document.createElement('img');
+                images.appendChild(img);
+                var reader = new FileReader();
+                reader.onload = function(e) { img.src = e.target.result; };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    var formData = new FormData();
+    formData.append('damage_file_id', fileId);
+    formData.append('category', opts.category);
+    files.forEach(function(file) {
+        formData.append('files[]', file);
+    });
+
+    return apiUpload(uploadUrl, formData, function(percent) {
+        setPreviewProgress(previewEl, percent, percent >= 100 ? 'Kaydediliyor…' : ('Yükleniyor… %' + percent));
+    }).then(function(data) {
+        var count = (data.uploaded && data.uploaded.length) || 0;
+        markPreviewDone(previewEl, true, count + ' evrak yüklendi');
+        if (data.errors && data.errors.length) {
+            showToast(data.errors.join(' · '), 'error');
+        }
+        return data;
+    }).catch(function(err) {
+        markPreviewDone(previewEl, false, (err && err.error) || 'Yükleme hatası');
+        throw err;
+    });
+}
+
+function bindCategoryUpload(opts) {
+    document.querySelectorAll(opts.gridSelector + ' .category-card').forEach(function(card) {
+        var input = card.querySelector('.cat-input');
+        if (!input) return;
+        input.addEventListener('change', function() {
+            if (!this.files.length) return;
+            var files = this.files;
+            var category = card.dataset.category;
+            this.value = '';
+            uploadDocuments({
+                getFileId: opts.getFileId,
+                fileId: opts.fileId,
+                category: category,
+                files: files,
+                previewEl: opts.previewEl,
+                uploadUrl: opts.uploadUrl,
+                noFileMessage: opts.noFileMessage
+            }).then(function(data) {
+                showToast(((data.uploaded && data.uploaded.length) || 0) + ' evrak yüklendi', 'success');
+                if (opts.reloadOnSuccess) {
+                    setTimeout(function() { location.reload(); }, 900);
+                }
+            }).catch(function(err) {
+                showToast((err && err.error) || 'Yükleme hatası', 'error');
+            });
+        });
+    });
+}
+
+function bindQuickPhotoPickers(opts) {
+    var wrap = document.querySelector(opts.wrapSelector || '[data-upload-quick]');
+    if (!wrap) return;
+
+    var category = wrap.dataset.category || opts.category || 'hasar_foto';
+    var cameraInput = wrap.querySelector('[data-source="camera"]');
+    var galleryInput = wrap.querySelector('[data-source="gallery"]');
+    if (!cameraInput || !galleryInput) return;
+
+    wrap.querySelectorAll('[data-trigger]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var source = btn.getAttribute('data-trigger');
+            var input = source === 'camera' ? cameraInput : galleryInput;
+            input.value = '';
+            input.click();
+        });
+    });
+
+    function handlePick(files) {
+        if (!files.length) return;
+        uploadDocuments({
+            getFileId: opts.getFileId,
+            fileId: opts.fileId,
+            category: category,
+            files: files,
+            previewEl: opts.previewEl,
+            uploadUrl: opts.uploadUrl,
+            noFileMessage: opts.noFileMessage
+        }).then(function(data) {
+            showToast(((data.uploaded && data.uploaded.length) || 0) + ' evrak yüklendi', 'success');
+            if (opts.reloadOnSuccess) {
+                setTimeout(function() { location.reload(); }, 900);
+            }
+        }).catch(function(err) {
+            showToast((err && err.error) || 'Yükleme hatası', 'error');
+        });
+    }
+
+    cameraInput.addEventListener('change', function() {
+        handlePick(this.files);
+        this.value = '';
+    });
+    galleryInput.addEventListener('change', function() {
+        handlePick(this.files);
+        this.value = '';
+    });
+}
+
 function apiFetch(url, options) {
     options = options || {};
     options.credentials = 'same-origin';

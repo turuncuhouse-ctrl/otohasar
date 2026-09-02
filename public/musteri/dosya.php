@@ -43,7 +43,7 @@ $pageTitle = $file['file_number'];
     <meta name="theme-color" content="#0f172a">
     <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
     <title><?= e($pageTitle) ?> — OTOHASAR</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/style.css?v=8">
 </head>
 <body class="portal-body">
 <main class="portal-wrap">
@@ -72,7 +72,7 @@ $pageTitle = $file['file_number'];
         </div>
         <div class="upload-section">
             <h3>Evrak / fotoğraf yükle</h3>
-            <div class="category-grid compact">
+            <div class="category-grid compact" id="uploadCategoryGrid">
                 <?php foreach ($categories as $key => $label):
                     $icon = match($key) {
                         'ruhsat' => '📄', 'ehliyet' => '🪪', 'tutanak' => '📋',
@@ -83,11 +83,18 @@ $pageTitle = $file['file_number'];
                 <div class="category-card small" data-category="<?= e($key) ?>">
                     <span class="cat-icon"><?= $icon ?></span>
                     <span class="cat-label"><?= e($label) ?></span>
-                    <input type="file" class="cat-input" accept="image/jpeg,image/png,image/webp" capture="environment"
+                    <input type="file" class="cat-input" accept="image/*"
                            <?= $key === 'hasar_foto' ? 'multiple' : '' ?>>
                 </div>
                 <?php endforeach; ?>
             </div>
+            <div class="upload-quick-actions" data-upload-quick data-category="hasar_foto">
+                <button type="button" class="btn btn-secondary btn-sm" data-trigger="camera">📷 Kamera ile çek</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-trigger="gallery">🖼️ Galeriden seç</button>
+                <input type="file" class="sr-only" data-source="camera" accept="image/*" capture="environment" multiple>
+                <input type="file" class="sr-only" data-source="gallery" accept="image/*" multiple>
+            </div>
+            <div id="uploadPreview" class="upload-preview"></div>
         </div>
         <?php else: ?>
         <div class="grant-banner grant-banner-warn">
@@ -116,39 +123,23 @@ $pageTitle = $file['file_number'];
     </div>
 </main>
 <div id="toastContainer" class="toast-container"></div>
-<script src="/assets/js/app.js"></script>
+<script src="/assets/js/app.js?v=8"></script>
 <script>
 (function() {
-    var csrf = document.querySelector('meta[name="csrf-token"]').content;
     var fileId = <?= (int)$fileId ?>;
 
-    function uploadFiles(category, files) {
-        var formData = new FormData();
-        formData.append('csrf', csrf);
-        formData.append('damage_file_id', fileId);
-        formData.append('category', category);
-        for (var i = 0; i < files.length; i++) formData.append('files[]', files[i]);
-        fetch('/api/customer_upload.php', { method: 'POST', body: formData })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.ok) {
-                    showToast((data.uploaded || []).length + ' dosya yüklendi', 'success');
-                    location.reload();
-                } else {
-                    showToast(data.error || 'Yükleme hatası', 'error');
-                }
-            })
-            .catch(function() { showToast('Bağlantı hatası', 'error'); });
-    }
-
-    document.querySelectorAll('.category-card').forEach(function(card) {
-        var input = card.querySelector('.cat-input');
-        if (!input) return;
-        card.addEventListener('click', function(e) { if (e.target !== input) input.click(); });
-        input.addEventListener('change', function() {
-            if (this.files.length) uploadFiles(card.dataset.category, this.files);
-            this.value = '';
-        });
+    bindCategoryUpload({
+        fileId: fileId,
+        gridSelector: '#uploadCategoryGrid',
+        previewEl: document.getElementById('uploadPreview'),
+        uploadUrl: '/api/customer_upload.php',
+        reloadOnSuccess: true
+    });
+    bindQuickPhotoPickers({
+        fileId: fileId,
+        previewEl: document.getElementById('uploadPreview'),
+        uploadUrl: '/api/customer_upload.php',
+        reloadOnSuccess: true
     });
 })();
 </script>

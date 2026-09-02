@@ -652,7 +652,47 @@ body {
 .category-card.small { padding: .75rem .375rem; }
 .cat-icon { font-size: 1.5rem; }
 .cat-label { font-size: .6875rem; font-weight: 600; text-align: center; }
-.cat-input { position: absolute; opacity: 0; width: 0; height: 0; }
+.cat-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+    font-size: 0;
+}
+.category-card { overflow: hidden; }
+
+.upload-quick-actions {
+    display: flex;
+    gap: .5rem;
+    margin: 0 0 1rem;
+    flex-wrap: wrap;
+}
+.upload-quick-actions .btn { flex: 1; min-width: 140px; }
+
+.upload-preview:empty { display: none; }
+.preview-card .preview-status {
+    display: block;
+    font-size: .75rem;
+    color: var(--text-muted);
+    margin-top: .25rem;
+}
+.preview-card.success .preview-status { color: #059669; }
+.preview-card.error .preview-status { color: #dc2626; }
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
 
 .dropzone {
     border: 2px dashed var(--border);

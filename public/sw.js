@@ -1,4 +1,4 @@
-const CACHE_NAME = 'otohasar-shell-v7';
+const CACHE_NAME = 'otohasar-shell-v8';
 const SHELL_ASSETS = [
     '/assets/css/style.css',
     '/assets/js/app.js',

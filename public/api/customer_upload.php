@@ -62,7 +62,7 @@ for ($i = 0; $i < $fileCount; $i++) {
 
     $validated = validate_upload_mime($tmpPath, $origName);
     if (!$validated) {
-        $errors[] = "$origName: Yalnızca JPG/PNG/WEBP kabul edilir";
+        $errors[] = upload_validation_error($tmpPath, $origName);
         continue;
     }
 
@@ -95,6 +95,10 @@ if (!empty($uploaded)) {
     $count = count($uploaded);
     $logUserId = (int) ($file['customer_upload_granted_by'] ?: $file['advisor_id']);
     add_file_log($pdo, $fileId, $logUserId, "Müşteri $count evrak yükledi ($catLabel)");
+}
+
+if (empty($uploaded)) {
+    json_error(!empty($errors) ? implode(' · ', $errors) : 'Dosya yüklenemedi');
 }
 
 json_response(['ok' => true, 'uploaded' => $uploaded, 'errors' => $errors]);
