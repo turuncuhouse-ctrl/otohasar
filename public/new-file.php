@@ -148,7 +148,8 @@ require __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<script>
+<?php
+$pageScript = <<<'JS'
 (function() {
     var fileId = null;
     var plateTimer = null;
@@ -287,6 +288,6 @@ require __DIR__ . '/../includes/header.php';
         this.value = '';
     });
 })();
-</script>
+JS;
 
-<?php require __DIR__ . '/../includes/footer.php'; ?>
+require __DIR__ . '/../includes/footer.php';
