@@ -97,23 +97,32 @@ require __DIR__ . '/../includes/header.php';
     </div>
 
     <div class="tab-content active" id="tab-docs">
-        <?php if (!empty($permissions['can_grant_customer_upload']) || !empty($permissions['can_edit'])): ?>
-        <div class="customer-msg-panel" id="customerMsgPanel">
-            <h3>Müşteriye mesaj</h3>
-            <p class="grant-hint">Bu mesaj müşteri portalında görünür. Eksik evrak veya bilgilendirme için kullanın.</p>
-            <div class="form-group">
-                <label for="customerMessageBox">Mesaj</label>
-                <textarea id="customerMessageBox" class="form-input" maxlength="2000"
-                          placeholder="Örn: Ruhsat ve ehliyet fotoğraflarını yüklemenizi rica ederiz. Sorunuz olursa bizi arayın."><?= e($file['customer_message'] ?? '') ?></textarea>
+        <?php if (!empty($permissions['can_grant_customer_upload']) || !empty($permissions['can_edit'])):
+            $hasCustMsg = trim((string) ($file['customer_message'] ?? '')) !== '';
+        ?>
+        <details class="customer-msg-panel" id="customerMsgPanel">
+            <summary class="customer-msg-summary">
+                <span class="customer-msg-summary-title">Müşteriye mesaj</span>
+                <span class="customer-msg-badge <?= $hasCustMsg ? 'has-msg' : '' ?>">
+                    <?= $hasCustMsg ? 'Mesaj var' : 'Yok' ?>
+                </span>
+            </summary>
+            <div class="customer-msg-body">
+                <p class="grant-hint">Bu mesaj müşteri portalında görünür. Eksik evrak veya bilgilendirme için kullanın.</p>
+                <div class="form-group">
+                    <label for="customerMessageBox">Mesaj</label>
+                    <textarea id="customerMessageBox" class="form-input" maxlength="2000" rows="3"
+                              placeholder="Örn: Ruhsat ve ehliyet fotoğraflarını yüklemenizi rica ederiz."><?= e($file['customer_message'] ?? '') ?></textarea>
+                </div>
+                <div class="customer-msg-actions">
+                    <button type="button" class="btn btn-primary btn-sm" id="customerMsgSave">Kaydet</button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="customerMsgClear">Temizle</button>
+                </div>
+                <?php if (!empty($file['customer_message_at'])): ?>
+                <p class="text-muted customer-msg-meta">Son güncelleme: <?= e(date('d.m.Y H:i', strtotime((string)$file['customer_message_at']))) ?></p>
+                <?php endif; ?>
             </div>
-            <div class="customer-msg-actions">
-                <button type="button" class="btn btn-primary" id="customerMsgSave">Mesajı kaydet</button>
-                <button type="button" class="btn btn-ghost" id="customerMsgClear">Temizle</button>
-            </div>
-            <?php if (!empty($file['customer_message_at'])): ?>
-            <p class="text-muted" style="margin-top:.5rem;font-size:.75rem">Son güncelleme: <?= e(date('d.m.Y H:i', strtotime((string)$file['customer_message_at']))) ?></p>
-            <?php endif; ?>
-        </div>
+        </details>
         <?php endif; ?>
 
         <?php if (!empty($permissions['can_grant_customer_upload'])): ?>
