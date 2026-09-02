@@ -180,11 +180,15 @@ require __DIR__ . '/../includes/header.php';
                 <?php endforeach; ?>
             </div>
             <?php if (in_array('hasar_foto', $permissions['allowed_categories'], true)): ?>
-            <div class="upload-quick-actions" data-upload-quick data-category="hasar_foto">
-                <button type="button" class="btn btn-secondary btn-sm" data-trigger="camera">📷 Kamera ile çek</button>
-                <button type="button" class="btn btn-secondary btn-sm" data-trigger="gallery">🖼️ Galeriden seç</button>
-                <input type="file" class="sr-only" data-source="camera" accept="image/*" capture="environment" multiple>
-                <input type="file" class="sr-only" data-source="gallery" accept="image/*" multiple>
+            <div class="upload-quick-actions" data-category="hasar_foto">
+                <label class="btn btn-secondary btn-sm upload-picker-btn">
+                    📷 Kamera ile çek
+                    <input type="file" class="upload-picker-input" accept="image/*" capture="environment" multiple>
+                </label>
+                <label class="btn btn-secondary btn-sm upload-picker-btn">
+                    🖼️ Galeriden seç
+                    <input type="file" class="upload-picker-input" accept="image/*" multiple>
+                </label>
             </div>
             <?php endif; ?>
             <div id="uploadPreview" class="upload-preview"></div>
@@ -371,8 +375,8 @@ require __DIR__ . '/../includes/header.php';
         previewEl: document.getElementById('uploadPreview'),
         reloadOnSuccess: true
     });
-    if (document.querySelector('[data-upload-quick]')) {
-        bindQuickPhotoPickers({
+    if (document.querySelector('.upload-quick-actions')) {
+        bindUploadPickers({
             fileId: fileId,
             previewEl: document.getElementById('uploadPreview'),
             reloadOnSuccess: true

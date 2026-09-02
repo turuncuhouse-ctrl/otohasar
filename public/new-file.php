@@ -139,15 +139,19 @@ require __DIR__ . '/../includes/header.php';
             </div>
             <?php endforeach; ?>
         </div>
-        <div class="upload-quick-actions" data-upload-quick data-category="hasar_foto">
-            <button type="button" class="btn btn-secondary btn-sm" data-trigger="camera">📷 Kamera ile çek</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-trigger="gallery">🖼️ Galeriden seç</button>
-            <input type="file" class="sr-only" data-source="camera" accept="image/*" capture="environment" multiple>
-            <input type="file" class="sr-only" data-source="gallery" accept="image/*" multiple>
+        <div class="upload-quick-actions" data-category="hasar_foto">
+            <label class="btn btn-secondary btn-sm upload-picker-btn">
+                📷 Kamera ile çek
+                <input type="file" class="upload-picker-input" accept="image/*" capture="environment" multiple>
+            </label>
+            <label class="btn btn-secondary btn-sm upload-picker-btn">
+                🖼️ Galeriden seç
+                <input type="file" class="upload-picker-input" accept="image/*" multiple>
+            </label>
         </div>
         <div class="dropzone" id="dropzone">
             <p>Hasar fotoğrafı sürükleyip bırakın veya tıklayın</p>
-            <input type="file" id="dropInput" accept="image/*" multiple>
+            <input type="file" class="dropzone-input" id="dropInput" accept="image/*" multiple>
         </div>
         <div id="uploadPreview" class="upload-preview"></div>
         <a href="/dashboard.php" class="btn btn-primary btn-block btn-lg">Panoya Dön</a>
@@ -273,7 +277,7 @@ $pageScript = <<<'JS'
         previewEl: document.getElementById('uploadPreview'),
         noFileMessage: 'Önce dosyayı oluşturun'
     });
-    bindQuickPhotoPickers({
+    bindUploadPickers({
         getFileId: function() { return fileId; },
         previewEl: document.getElementById('uploadPreview'),
         noFileMessage: 'Önce dosyayı oluşturun'
@@ -281,7 +285,6 @@ $pageScript = <<<'JS'
 
     var dropzone = document.getElementById('dropzone');
     var dropInput = document.getElementById('dropInput');
-    dropzone.addEventListener('click', function() { dropInput.click(); });
     dropzone.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('drag-over'); });
     dropzone.addEventListener('dragleave', function() { this.classList.remove('drag-over'); });
     dropzone.addEventListener('drop', function(e) {

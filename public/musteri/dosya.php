@@ -43,7 +43,7 @@ $pageTitle = $file['file_number'];
     <meta name="theme-color" content="#0f172a">
     <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
     <title><?= e($pageTitle) ?> — OTOHASAR</title>
-    <link rel="stylesheet" href="/assets/css/style.css?v=8">
+    <link rel="stylesheet" href="/assets/css/style.css?v=9">
 </head>
 <body class="portal-body">
 <main class="portal-wrap">
@@ -88,11 +88,15 @@ $pageTitle = $file['file_number'];
                 </div>
                 <?php endforeach; ?>
             </div>
-            <div class="upload-quick-actions" data-upload-quick data-category="hasar_foto">
-                <button type="button" class="btn btn-secondary btn-sm" data-trigger="camera">📷 Kamera ile çek</button>
-                <button type="button" class="btn btn-secondary btn-sm" data-trigger="gallery">🖼️ Galeriden seç</button>
-                <input type="file" class="sr-only" data-source="camera" accept="image/*" capture="environment" multiple>
-                <input type="file" class="sr-only" data-source="gallery" accept="image/*" multiple>
+            <div class="upload-quick-actions" data-category="hasar_foto">
+                <label class="btn btn-secondary btn-sm upload-picker-btn">
+                    📷 Kamera ile çek
+                    <input type="file" class="upload-picker-input" accept="image/*" capture="environment" multiple>
+                </label>
+                <label class="btn btn-secondary btn-sm upload-picker-btn">
+                    🖼️ Galeriden seç
+                    <input type="file" class="upload-picker-input" accept="image/*" multiple>
+                </label>
             </div>
             <div id="uploadPreview" class="upload-preview"></div>
         </div>
@@ -123,7 +127,7 @@ $pageTitle = $file['file_number'];
     </div>
 </main>
 <div id="toastContainer" class="toast-container"></div>
-<script src="/assets/js/app.js?v=8"></script>
+<script src="/assets/js/app.js?v=9"></script>
 <script>
 (function() {
     var fileId = <?= (int)$fileId ?>;
@@ -135,7 +139,7 @@ $pageTitle = $file['file_number'];
         uploadUrl: '/api/customer_upload.php',
         reloadOnSuccess: true
     });
-    bindQuickPhotoPickers({
+    bindUploadPickers({
         fileId: fileId,
         previewEl: document.getElementById('uploadPreview'),
         uploadUrl: '/api/customer_upload.php',

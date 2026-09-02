@@ -42,6 +42,28 @@ function apiUpload(url, formData, onProgress) {
     });
 }
 
+function isImageFile(file) {
+    if (!file) return false;
+    var type = (file.type || '').toLowerCase();
+    if (type === '' || type === 'application/octet-stream') return true;
+    if (type.indexOf('image/') === 0) return true;
+    var name = (file.name || '').toLowerCase();
+    return /\.(jpe?g|png|webp|heic|heif)$/.test(name);
+}
+
+function filterImageFiles(files) {
+    var list = Array.from(files || []).filter(isImageFile);
+    var heic = list.filter(function(file) {
+        var type = (file.type || '').toLowerCase();
+        var name = (file.name || '').toLowerCase();
+        return type.indexOf('heic') !== -1 || type.indexOf('heif') !== -1 || /\.heic$/.test(name) || /\.heif$/.test(name);
+    });
+    if (heic.length && heic.length === list.length) {
+        return { files: list, heicOnly: true };
+    }
+    return { files: list, heicOnly: false };
+}
+
 function uploadLabel(file) {
     if (file.name) return file.name;
     if (file.type) return file.type.replace('image/', '').toUpperCase() + ' fotoğraf';
@@ -85,11 +107,15 @@ function uploadDocuments(opts) {
         return Promise.reject({ error: 'Dosya seçilmedi' });
     }
 
-    files = files.filter(function(file) {
-        return !file.type || file.type.indexOf('image/') === 0;
-    });
+    var filtered = filterImageFiles(files);
+    files = filtered.files;
     if (!files.length) {
         return Promise.reject({ error: 'Geçerli görsel seçilmedi (JPEG, PNG, WebP)' });
+    }
+    if (filtered.heicOnly) {
+        return Promise.reject({
+            error: 'HEIC formatı desteklenmiyor. iPhone: Ayarlar > Kamera > Biçimler > En Uyumlu (JPEG) seçin veya JPEG fotoğraf yükleyin.'
+        });
     }
 
     if (previewEl) {
@@ -177,52 +203,37 @@ function bindCategoryUpload(opts) {
     });
 }
 
+function bindUploadPickers(opts) {
+    document.querySelectorAll(opts.wrapSelector || '.upload-quick-actions').forEach(function(wrap) {
+        var category = wrap.dataset.category || opts.category || 'hasar_foto';
+        wrap.querySelectorAll('.upload-picker-input').forEach(function(input) {
+            input.addEventListener('change', function() {
+                if (!this.files.length) return;
+                var files = this.files;
+                this.value = '';
+                uploadDocuments({
+                    getFileId: opts.getFileId,
+                    fileId: opts.fileId,
+                    category: category,
+                    files: files,
+                    previewEl: opts.previewEl,
+                    uploadUrl: opts.uploadUrl,
+                    noFileMessage: opts.noFileMessage
+                }).then(function(data) {
+                    showToast(((data.uploaded && data.uploaded.length) || 0) + ' evrak yüklendi', 'success');
+                    if (opts.reloadOnSuccess) {
+                        setTimeout(function() { location.reload(); }, 900);
+                    }
+                }).catch(function(err) {
+                    showToast((err && err.error) || 'Yükleme hatası', 'error');
+                });
+            });
+        });
+    });
+}
+
 function bindQuickPhotoPickers(opts) {
-    var wrap = document.querySelector(opts.wrapSelector || '[data-upload-quick]');
-    if (!wrap) return;
-
-    var category = wrap.dataset.category || opts.category || 'hasar_foto';
-    var cameraInput = wrap.querySelector('[data-source="camera"]');
-    var galleryInput = wrap.querySelector('[data-source="gallery"]');
-    if (!cameraInput || !galleryInput) return;
-
-    wrap.querySelectorAll('[data-trigger]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var source = btn.getAttribute('data-trigger');
-            var input = source === 'camera' ? cameraInput : galleryInput;
-            input.value = '';
-            input.click();
-        });
-    });
-
-    function handlePick(files) {
-        if (!files.length) return;
-        uploadDocuments({
-            getFileId: opts.getFileId,
-            fileId: opts.fileId,
-            category: category,
-            files: files,
-            previewEl: opts.previewEl,
-            uploadUrl: opts.uploadUrl,
-            noFileMessage: opts.noFileMessage
-        }).then(function(data) {
-            showToast(((data.uploaded && data.uploaded.length) || 0) + ' evrak yüklendi', 'success');
-            if (opts.reloadOnSuccess) {
-                setTimeout(function() { location.reload(); }, 900);
-            }
-        }).catch(function(err) {
-            showToast((err && err.error) || 'Yükleme hatası', 'error');
-        });
-    }
-
-    cameraInput.addEventListener('change', function() {
-        handlePick(this.files);
-        this.value = '';
-    });
-    galleryInput.addEventListener('change', function() {
-        handlePick(this.files);
-        this.value = '';
-    });
+    bindUploadPickers(opts);
 }
 
 function apiFetch(url, options) {
