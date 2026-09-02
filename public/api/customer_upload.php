@@ -9,6 +9,9 @@ $plate = portal_plate();
 if ($plate === null) {
     json_error('Plaka oturumu gerekli', 401);
 }
+if (!portal_kvkk_accepted()) {
+    json_error('KVKK onayı gerekli', 403);
+}
 
 $fileId   = (int) ($_POST['damage_file_id'] ?? 0);
 $category = $_POST['category'] ?? '';
@@ -25,6 +28,25 @@ if (!$file) {
 
 if (!is_customer_upload_granted($file)) {
     json_error('Yükleme izniniz yok veya süresi dolmuş. Lütfen servisinizle iletişime geçin.', 403);
+}
+
+$formTypes = insurance_form_doc_types();
+if (isset($formTypes[$category])) {
+    $company = find_insurance_company_by_name($file['insurance_company'] ?? null);
+    if (!$company) {
+        json_error('Bu dosyada kasko şirketi tanımlı değil', 403);
+    }
+    $companyTemplates = insurance_templates_for_company((int) $company['id']);
+    $hasType = false;
+    foreach ($companyTemplates as $tpl) {
+        if ($tpl['doc_type'] === $category) {
+            $hasType = true;
+            break;
+        }
+    }
+    if (!$hasType) {
+        json_error('Bu kasko şirketi için ' . $formTypes[$category] . ' şablonu yok', 403);
+    }
 }
 
 $incoming = normalize_uploaded_files($_FILES['files'] ?? []);
@@ -65,9 +87,13 @@ foreach ($incoming as $item) {
         continue;
     }
 
-    $validated = validate_upload_mime($tmpPath, $origName);
+    $validated = isset($formTypes[$category])
+        ? validate_document_mime($tmpPath, $origName)
+        : validate_upload_mime($tmpPath, $origName);
     if (!$validated) {
-        $errors[] = upload_validation_error($tmpPath, $origName);
+        $errors[] = isset($formTypes[$category])
+            ? (($origName !== '' ? $origName . ': ' : '') . 'Geçersiz dosya (JPEG, PNG, WebP veya PDF)')
+            : upload_validation_error($tmpPath, $origName);
         continue;
     }
 

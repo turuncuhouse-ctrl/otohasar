@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../includes/portal.php';
 
 $plate = portal_require_plate();
+portal_require_kvkk();
 $files = find_files_by_plate($plate);
 if (!$files) {
     portal_logout();
@@ -24,7 +25,7 @@ $pageTitle = 'Dosyalarım';
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0f172a">
     <title><?= e($pageTitle) ?> — OTOHASAR</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="<?= e(asset_css_url()) ?>">
 </head>
 <body class="portal-body">
 <main class="portal-wrap">

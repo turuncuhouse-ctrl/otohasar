@@ -13,6 +13,7 @@ $activeNav = 'admin';
 $pdo = db();
 $message = '';
 $error = '';
+$formTypes = insurance_form_doc_types();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)) {
     $action = $_POST['action'] ?? '';
@@ -33,8 +34,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
                 } else {
                     $pdo->prepare('INSERT INTO insurance_companies (name, labor_discount, parts_discount, note, is_active) VALUES (?,?,?,?,?)')
                         ->execute([$name, $labor, $parts, $note ?: null, $active]);
+                    $id = (int) $pdo->lastInsertId();
                 }
                 $message = 'Sigorta şirketi kaydedildi';
+                if ($id > 0) {
+                    header('Location: /admin/insurance.php?edit=' . $id . '&ok=1');
+                    exit;
+                }
             } catch (Throwable $e) {
                 $error = 'Kayıt hatası (isim benzersiz olmalı)';
             }
@@ -42,9 +48,99 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
     } elseif ($action === 'delete') {
         $pdo->prepare('DELETE FROM insurance_companies WHERE id=?')->execute([(int) ($_POST['id'] ?? 0)]);
         $message = 'Silindi';
+    } elseif ($action === 'save_template') {
+        $companyId = (int) ($_POST['company_id'] ?? 0);
+        $docType = (string) ($_POST['doc_type'] ?? '');
+        $title = trim((string) ($_POST['title'] ?? ''));
+        if ($companyId <= 0 || !isset($formTypes[$docType])) {
+            $error = 'Geçersiz şablon bilgisi';
+        } elseif (empty($_FILES['template_file']['name'])) {
+            $error = 'Şablon dosyası seçin (PDF veya görsel)';
+        } else {
+            $company = null;
+            foreach (insurance_companies(false) as $c) {
+                if ((int) $c['id'] === $companyId) {
+                    $company = $c;
+                    break;
+                }
+            }
+            if (!$company) {
+                $error = 'Şirket bulunamadı';
+            } else {
+                $item = normalize_uploaded_files($_FILES['template_file'])[0] ?? null;
+                if (!$item || $item['error'] !== UPLOAD_ERR_OK) {
+                    $error = upload_error_message((int) ($item['error'] ?? UPLOAD_ERR_NO_FILE), (string) ($item['name'] ?? ''));
+                } elseif ($item['size'] > app_config()['app']['upload_max']) {
+                    $error = 'Dosya 20MB limitini aşıyor';
+                } else {
+                    $validated = validate_document_mime($item['tmp_name'], $item['name']);
+                    if (!$validated) {
+                        $error = 'Geçersiz dosya türü (PDF, JPEG, PNG, WebP)';
+                    } else {
+                        $dir = template_storage_dir($companyId);
+                        $filename = random_filename($validated['ext']);
+                        $dest = $dir . '/' . $filename;
+                        if (!move_uploaded_file($item['tmp_name'], $dest)) {
+                            $error = 'Şablon kaydedilemedi';
+                        } else {
+                            $rel = 'templates/' . $companyId . '/' . $filename;
+                            $title = $title !== '' ? $title : $formTypes[$docType];
+                            try {
+                                $existing = $pdo->prepare(
+                                    'SELECT id, file_path FROM insurance_doc_templates
+                                     WHERE insurance_company_id = ? AND doc_type = ? LIMIT 1'
+                                );
+                                $existing->execute([$companyId, $docType]);
+                                $old = $existing->fetch();
+                                if ($old) {
+                                    $pdo->prepare(
+                                        'UPDATE insurance_doc_templates
+                                         SET title=?, file_path=?, original_name=?, mime_type=?, is_active=1
+                                         WHERE id=?'
+                                    )->execute([$title, $rel, $item['name'], $validated['mime'], (int) $old['id']]);
+                                    $oldAbs = rtrim((string) app_config()['paths']['uploads'], '/\\') . '/' . $old['file_path'];
+                                    if (is_file($oldAbs)) {
+                                        @unlink($oldAbs);
+                                    }
+                                } else {
+                                    $pdo->prepare(
+                                        'INSERT INTO insurance_doc_templates
+                                         (insurance_company_id, doc_type, title, file_path, original_name, mime_type, is_active)
+                                         VALUES (?,?,?,?,?,?,1)'
+                                    )->execute([$companyId, $docType, $title, $rel, $item['name'], $validated['mime']]);
+                                }
+                                header('Location: /admin/insurance.php?edit=' . $companyId . '&ok=1');
+                                exit;
+                            } catch (Throwable $e) {
+                                @unlink($dest);
+                                $error = 'Şablon veritabanına yazılamadı (migrate_v6 çalıştırılmış mı?)';
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } elseif ($action === 'delete_template') {
+        $templateId = (int) ($_POST['template_id'] ?? 0);
+        $companyId = (int) ($_POST['company_id'] ?? 0);
+        $tpl = find_insurance_template($templateId);
+        if ($tpl && (int) $tpl['insurance_company_id'] === $companyId) {
+            $pdo->prepare('DELETE FROM insurance_doc_templates WHERE id=?')->execute([$templateId]);
+            $abs = rtrim((string) app_config()['paths']['uploads'], '/\\') . '/' . $tpl['file_path'];
+            if (is_file($abs)) {
+                @unlink($abs);
+            }
+            header('Location: /admin/insurance.php?edit=' . $companyId . '&ok=1');
+            exit;
+        }
+        $error = 'Şablon silinemedi';
     }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $error = 'CSRF hatası';
+}
+
+if (isset($_GET['ok'])) {
+    $message = 'Kayıt güncellendi';
 }
 
 $rows = $pdo->query('SELECT * FROM insurance_companies ORDER BY name')->fetchAll();
@@ -55,6 +151,11 @@ foreach ($rows as $r) {
         $edit = $r;
         break;
     }
+}
+$editTemplates = $edit ? insurance_templates_for_company((int) $edit['id'], false) : [];
+$editByType = [];
+foreach ($editTemplates as $t) {
+    $editByType[$t['doc_type']] = $t;
 }
 
 require __DIR__ . '/../../includes/header.php';
@@ -107,4 +208,48 @@ require __DIR__ . '/../../includes/header.php';
         </table>
     </div>
 </div>
+
+<?php if ($edit): ?>
+<div class="admin-form-card" style="margin-top:1.5rem;max-width:900px">
+    <h2><?= e($edit['name']) ?> — Form Şablonları</h2>
+    <p class="text-muted">Müşteri portalında yalnızca bu şirketin Taahhüt / Teslim / İbra şablonları görünür.</p>
+    <?php foreach ($formTypes as $type => $label):
+        $tpl = $editByType[$type] ?? null;
+    ?>
+    <div class="ins-admin-template-row">
+        <h3><?= e($label) ?></h3>
+        <?php if ($tpl): ?>
+        <p>Mevcut: <strong><?= e($tpl['original_name']) ?></strong> · <?= e($tpl['title']) ?></p>
+        <form method="post" class="inline-form" onsubmit="return confirm('Şablon silinsin mi?')">
+            <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="action" value="delete_template">
+            <input type="hidden" name="company_id" value="<?= (int)$edit['id'] ?>">
+            <input type="hidden" name="template_id" value="<?= (int)$tpl['id'] ?>">
+            <button class="btn btn-sm btn-ghost" type="submit">Şablonu sil</button>
+        </form>
+        <?php else: ?>
+        <p class="text-muted">Henüz şablon yok.</p>
+        <?php endif; ?>
+        <form method="post" enctype="multipart/form-data" class="ins-admin-upload-form">
+            <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="action" value="save_template">
+            <input type="hidden" name="company_id" value="<?= (int)$edit['id'] ?>">
+            <input type="hidden" name="doc_type" value="<?= e($type) ?>">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Başlık</label>
+                    <input class="form-input" name="title" value="<?= e($tpl['title'] ?? $label) ?>">
+                </div>
+                <div class="form-group">
+                    <label>Dosya (PDF / JPEG / PNG)</label>
+                    <input class="form-input" type="file" name="template_file" accept=".pdf,image/jpeg,image/png,image/webp,application/pdf" required>
+                </div>
+            </div>
+            <button class="btn btn-secondary btn-sm" type="submit"><?= $tpl ? 'Şablonu değiştir' : 'Şablon yükle' ?></button>
+        </form>
+    </div>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
+
 <?php require __DIR__ . '/../../includes/footer.php'; ?>

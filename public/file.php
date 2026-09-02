@@ -167,7 +167,8 @@ require __DIR__ . '/../includes/header.php';
                     if (!in_array($key, $permissions['allowed_categories'], true)) continue;
                     $icon = match($key) {
                         'ruhsat' => '📄', 'ehliyet' => '🪪', 'tutanak' => '📋',
-                        'hasar_foto' => '📸', 'ekspertiz' => '🔍', 'onarim' => '🔧', 'diger' => '📁',
+                        'hasar_foto' => '📸', 'ekspertiz' => '🔍', 'taahhut' => '📝', 'teslim' => '📦', 'ibra' => '✍️',
+                        'onarim' => '🔧', 'diger' => '📁',
                         default => '📎'
                     };
                 ?>

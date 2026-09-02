@@ -121,6 +121,9 @@ function category_labels(): array
         'tutanak'    => 'Tutanak',
         'hasar_foto' => 'Hasar Foto',
         'ekspertiz'  => 'Ekspertiz',
+        'taahhut'    => 'Taahhüt',
+        'teslim'     => 'Teslim',
+        'ibra'       => 'İbra',
         'onarim'     => 'Onarım',
         'diger'      => 'Diğer',
     ];
@@ -173,6 +176,88 @@ function insurance_companies(bool $activeOnly = true): array
     } catch (Throwable $e) {
         return [];
     }
+}
+
+function insurance_form_doc_types(): array
+{
+    return [
+        'taahhut' => 'Taahhüt',
+        'teslim'  => 'Teslim',
+        'ibra'    => 'İbra',
+    ];
+}
+
+function find_insurance_company_by_name(?string $name): ?array
+{
+    $name = trim((string) $name);
+    if ($name === '') {
+        return null;
+    }
+    try {
+        $stmt = db()->prepare(
+            'SELECT * FROM insurance_companies
+             WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))
+             LIMIT 1'
+        );
+        $stmt->execute([$name]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+function insurance_templates_for_company(int $companyId, bool $activeOnly = true): array
+{
+    try {
+        $sql = 'SELECT * FROM insurance_doc_templates WHERE insurance_company_id = ?';
+        if ($activeOnly) {
+            $sql .= ' AND is_active = 1';
+        }
+        $sql .= ' ORDER BY FIELD(doc_type, \'taahhut\', \'teslim\', \'ibra\'), id';
+        $stmt = db()->prepare($sql);
+        $stmt->execute([$companyId]);
+        return $stmt->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function find_insurance_template(int $templateId): ?array
+{
+    try {
+        $stmt = db()->prepare('SELECT * FROM insurance_doc_templates WHERE id = ? LIMIT 1');
+        $stmt->execute([$templateId]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+function template_storage_dir(int $companyId): string
+{
+    $dir = rtrim((string) app_config()['paths']['uploads'], '/\\') . '/templates/' . $companyId;
+    ensure_upload_guards($dir);
+    return $dir;
+}
+
+function validate_document_mime(string $tmpPath, string $originalName): ?array
+{
+    $image = validate_upload_mime($tmpPath, $originalName);
+    if ($image) {
+        return $image;
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $tmpPath) ?: '';
+    finfo_close($finfo);
+
+    $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    if ($mime === 'application/pdf' || $ext === 'pdf') {
+        return ['mime' => 'application/pdf', 'ext' => 'pdf'];
+    }
+    return null;
 }
 
 function slugify_code(string $label): string
