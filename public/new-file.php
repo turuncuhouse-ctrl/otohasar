@@ -134,7 +134,8 @@ require __DIR__ . '/../includes/header.php';
             <div class="category-card" data-category="<?= e($key) ?>">
                 <span class="cat-icon"><?= $icon ?></span>
                 <span class="cat-label"><?= e($label) ?></span>
-                <input type="file" class="cat-input" accept="image/*"
+                <input type="file" class="cat-input"
+                       accept="<?= $key === 'hasar_foto' ? 'image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif' : 'image/*' ?>"
                        <?= $key === 'hasar_foto' ? 'multiple' : '' ?>>
             </div>
             <?php endforeach; ?>
@@ -142,16 +143,16 @@ require __DIR__ . '/../includes/header.php';
         <div class="upload-quick-actions" data-category="hasar_foto">
             <label class="btn btn-secondary btn-sm upload-picker-btn">
                 📷 Kamera ile çek
-                <input type="file" class="upload-picker-input" accept="image/*" capture="environment" multiple>
+                <input type="file" class="upload-picker-input" accept="image/*" capture="environment" data-source="camera">
             </label>
             <label class="btn btn-secondary btn-sm upload-picker-btn">
-                🖼️ Galeriden seç
-                <input type="file" class="upload-picker-input" accept="image/*" multiple>
+                🖼️ Galeriden çoklu seç
+                <input type="file" class="upload-picker-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif" multiple data-source="gallery">
             </label>
         </div>
         <div class="dropzone" id="dropzone">
-            <p>Hasar fotoğrafı sürükleyip bırakın veya tıklayın</p>
-            <input type="file" class="dropzone-input" id="dropInput" accept="image/*" multiple>
+            <p>Hasar fotoğrafı sürükleyip bırakın veya tıklayın (çoklu seçim)</p>
+            <input type="file" class="dropzone-input" id="dropInput" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif" multiple>
         </div>
         <div id="uploadPreview" class="upload-preview"></div>
         <a href="/dashboard.php" class="btn btn-primary btn-block btn-lg">Panoya Dön</a>

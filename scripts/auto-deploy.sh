@@ -25,7 +25,7 @@ git fetch origin
 git reset --hard "origin/${BRANCH}"
 
 echo "[2/5] Versioned asset kopyalari..."
-ASSET_VER=$(grep -oP "'asset_version'\s*=>\s*'\K[0-9]+" config/config.php || echo "13")
+ASSET_VER=$(grep -oP "'asset_version'\s*=>\s*'\K[0-9]+" config/config.php || echo "14")
 cp public/assets/js/app.js "public/assets/js/app.${ASSET_VER}.js"
 cp public/assets/css/style.css "public/assets/css/style.${ASSET_VER}.css"
 

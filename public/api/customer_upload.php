@@ -32,8 +32,8 @@ if (!$incoming) {
     json_error('Dosya seçilmedi — lütfen galeriden fotoğraf seçip tekrar deneyin');
 }
 
-if (count($incoming) > 8) {
-    json_error('En fazla 8 dosya yüklenebilir');
+if (count($incoming) > 20) {
+    json_error('En fazla 20 dosya yüklenebilir');
 }
 
 $pdo = db();
