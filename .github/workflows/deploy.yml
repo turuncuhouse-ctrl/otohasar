@@ -35,6 +35,14 @@ jobs:
               "$TMP/repo/" "$APP/"
             rm -rf "$TMP"
 
+            # Eski kurulumlar kodu DATA kok dizininden okuyor (app/ alt klasoru yok)
+            if [ -d "$DATA/public" ] || [ -f "$DATA/Dockerfile" ]; then
+              echo "=== Legacy root sync to $DATA ==="
+              rsync -a --delete \
+                --exclude data --exclude env --exclude app \
+                "$APP/" "$DATA/"
+            fi
+
             test -f "$APP/public/assets/js/app.js"
             grep -q snapshotInputFiles "$APP/public/assets/js/app.js"
 
@@ -42,4 +50,8 @@ jobs:
             chmod +x scripts/*.sh
             ./scripts/auto-deploy.sh "$BRANCH"
 
-            echo "Deploy OK — $(head -1 public/assets/js/app.js | wc -c) byte app.js header"
+            echo "=== Post-deploy verify ==="
+            curl -sf "http://127.0.0.1:4080/assets/js/app.js" | grep -q snapshotInputFiles
+            curl -sf "http://127.0.0.1:4080/sw.js" | grep -q 'otohasar-shell-v12'
+
+            echo "Deploy OK"

@@ -91,11 +91,11 @@ $pageTitle = $file['file_number'];
             <div class="upload-quick-actions" data-category="hasar_foto">
                 <label class="btn btn-secondary btn-sm upload-picker-btn">
                     📷 Kamera ile çek
-                    <input type="file" class="upload-picker-input" accept="image/*" capture="environment" multiple>
+                    <input type="file" class="upload-picker-input" accept="image/*" capture="environment" multiple data-source="camera">
                 </label>
                 <label class="btn btn-secondary btn-sm upload-picker-btn">
                     🖼️ Galeriden seç
-                    <input type="file" class="upload-picker-input" accept="image/*" multiple>
+                    <input type="file" class="upload-picker-input" accept="image/*" multiple data-source="gallery">
                 </label>
             </div>
             <div id="uploadPreview" class="upload-preview"></div>
