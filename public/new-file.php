@@ -150,7 +150,6 @@ require __DIR__ . '/../includes/header.php';
 
 <script>
 (function() {
-    var csrf = document.querySelector('meta[name="csrf-token"]').content;
     var fileId = null;
     var plateTimer = null;
     var plateInput = document.getElementById('plate');
@@ -163,6 +162,10 @@ require __DIR__ . '/../includes/header.php';
         return /^\d{2}[A-Z]{1,3}\d{2,4}$/.test(p);
     }
 
+    function apiGet(url) {
+        return fetch(url, { credentials: 'same-origin' }).then(function(r) { return r.json(); });
+    }
+
     plateInput.addEventListener('input', function() {
         var raw = this.value;
         var norm = normalizePlate(raw);
@@ -172,8 +175,7 @@ require __DIR__ . '/../includes/header.php';
         clearTimeout(plateTimer);
         if (norm.length < 2) { document.getElementById('plateSuggestions').innerHTML = ''; return; }
         plateTimer = setTimeout(function() {
-            fetch('/api/plate_search.php?q=' + encodeURIComponent(norm))
-                .then(function(r) { return r.json(); })
+            apiGet('/api/plate_search.php?q=' + encodeURIComponent(norm))
                 .then(function(data) {
                     var html = '';
                     (data.results || []).forEach(function(v) {
@@ -182,15 +184,15 @@ require __DIR__ . '/../includes/header.php';
                             ' (' + v.customer_name + ')</div>';
                     });
                     document.getElementById('plateSuggestions').innerHTML = html;
-                });
+                })
+                .catch(function() {});
         }, 300);
     });
 
     document.getElementById('plateSuggestions').addEventListener('click', function(e) {
         var item = e.target.closest('.suggestion-item');
         if (!item) return;
-        fetch('/api/plate_search.php?q=' + encodeURIComponent(item.dataset.plate))
-            .then(function(r) { return r.json(); })
+        apiGet('/api/plate_search.php?q=' + encodeURIComponent(item.dataset.plate))
             .then(function(data) {
                 if (data.results && data.results[0]) {
                     var v = data.results[0];
@@ -202,6 +204,7 @@ require __DIR__ . '/../includes/header.php';
                     document.getElementById('chassis_no').value = v.chassis_no || '';
                     document.getElementById('customer_name').value = v.customer_name || '';
                     document.getElementById('customer_phone').value = v.customer_phone || '';
+                    document.getElementById('customer_address').value = v.customer_address || '';
                     document.getElementById('tc_vkn').value = v.tc_vkn || '';
                 }
                 document.getElementById('plateSuggestions').innerHTML = '';
@@ -221,45 +224,42 @@ require __DIR__ . '/../includes/header.php';
         btn.textContent = 'Oluşturuluyor...';
         var formData = new FormData(this);
         formData.set('plate', plate);
-        formData.append('csrf', csrf);
-        fetch('/api/create_file.php', { method: 'POST', body: formData })
-            .then(function(r) { return r.json(); })
+        apiFetch('/api/create_file.php', { method: 'POST', body: formData })
             .then(function(data) {
                 btn.disabled = false;
                 btn.textContent = 'Dosya Aç';
-                if (data.ok) {
-                    fileId = data.file_id;
-                    document.getElementById('createdFileNumber').textContent = data.file_number;
-                    document.getElementById('goToFileLink').href = '/file.php?id=' + fileId;
-                    document.getElementById('step1').classList.remove('active');
-                    document.getElementById('step2').classList.add('active');
-                    showToast('Dosya oluşturuldu: ' + data.file_number, 'success');
-                } else {
-                    showToast(data.error || 'Hata', 'error');
-                }
+                fileId = data.file_id;
+                document.getElementById('createdFileNumber').textContent = data.file_number;
+                document.getElementById('goToFileLink').href = '/file.php?id=' + fileId;
+                document.getElementById('step1').classList.remove('active');
+                document.getElementById('step2').classList.add('active');
+                showToast('Dosya oluşturuldu: ' + data.file_number, 'success');
             })
-            .catch(function() {
+            .catch(function(err) {
                 btn.disabled = false;
                 btn.textContent = 'Dosya Aç';
-                showToast('Bağlantı hatası', 'error');
+                var msg = (err && err.error) ? err.error : 'Bağlantı hatası';
+                if (msg.indexOf('Oturum') !== -1 || msg.indexOf('CSRF') !== -1) {
+                    msg += ' — sayfayı yenileyip tekrar giriş yapın';
+                }
+                showToast(msg, 'error');
             });
     });
 
     function uploadFiles(category, files) {
         if (!fileId || !files.length) return;
         var formData = new FormData();
-        formData.append('csrf', csrf);
         formData.append('damage_file_id', fileId);
         formData.append('category', category);
         for (var i = 0; i < files.length; i++) formData.append('files[]', files[i]);
-        fetch('/api/upload.php', { method: 'POST', body: formData })
-            .then(function(r) { return r.json(); })
+        apiFetch('/api/upload.php', { method: 'POST', body: formData })
             .then(function(data) {
-                if (data.ok && data.uploaded.length) {
+                if (data.uploaded && data.uploaded.length) {
                     showToast(data.uploaded.length + ' evrak yüklendi', 'success');
-                } else {
-                    showToast(data.error || 'Yükleme hatası', 'error');
                 }
+            })
+            .catch(function(err) {
+                showToast((err && err.error) || 'Yükleme hatası', 'error');
             });
     }
 

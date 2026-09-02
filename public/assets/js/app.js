@@ -1,3 +1,26 @@
+function getCsrfToken() {
+    var el = document.querySelector('meta[name="csrf-token"]');
+    return el ? el.content : '';
+}
+
+function apiFetch(url, options) {
+    options = options || {};
+    options.credentials = 'same-origin';
+    if (options.method === 'POST' && options.body instanceof FormData) {
+        if (!options.body.has('csrf')) {
+            options.body.append('csrf', getCsrfToken());
+        }
+    }
+    return fetch(url, options).then(function(r) {
+        return r.json().then(function(data) {
+            if (!r.ok && data && data.error) {
+                return Promise.reject(data);
+            }
+            return data;
+        });
+    });
+}
+
 function showToast(message, type) {
     type = type || 'info';
     var container = document.getElementById('toastContainer');
@@ -41,7 +64,7 @@ function logWhatsApp(fileId, status) {
     formData.append('csrf', csrfEl.content);
     formData.append('damage_file_id', fileId);
     formData.append('status', status || '');
-    fetch('/api/whatsapp_log.php', { method: 'POST', body: formData }).catch(function() {});
+    fetch('/api/whatsapp_log.php', { method: 'POST', body: formData, credentials: 'same-origin' }).catch(function() {});
 }
 
 document.addEventListener('DOMContentLoaded', function() {

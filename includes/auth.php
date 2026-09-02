@@ -7,11 +7,14 @@ require_once __DIR__ . '/helpers.php';
 function start_session(): void
 {
     if (session_status() === PHP_SESSION_NONE) {
+        $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
         session_set_cookie_params([
             'lifetime' => 0,
             'path'     => '/',
             'httponly' => true,
             'samesite' => 'Lax',
+            'secure'   => $secure,
         ]);
         session_start();
     }
@@ -97,7 +100,7 @@ function verify_api_csrf(): void
     }
     $token = $_POST['csrf'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null;
     if (!verify_csrf($token)) {
-        json_error('CSRF doğrulaması başarısız', 403);
+        json_error('CSRF doğrulaması başarısız — sayfayı yenileyip tekrar deneyin', 403);
     }
 }
 
@@ -107,6 +110,7 @@ function login_user(array $user): void
     session_regenerate_id(true);
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['user_role'] = $user['role'];
+    csrf_token();
 }
 
 function logout_user(): void

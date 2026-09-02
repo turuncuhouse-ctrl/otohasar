@@ -1,8 +1,5 @@
-const CACHE_NAME = 'otohasar-shell-v4';
+const CACHE_NAME = 'otohasar-shell-v5';
 const SHELL_ASSETS = [
-    '/',
-    '/dashboard.php',
-    '/login.php',
     '/assets/css/style.css',
     '/assets/js/app.js',
     '/assets/icons/icon-192.png',
@@ -31,18 +28,18 @@ self.addEventListener('activate', function(event) {
     self.clients.claim();
 });
 
+function isNetworkOnly(url) {
+    if (url.pathname.startsWith('/api/')) return true;
+    if (url.pathname.startsWith('/uploads/')) return true;
+    if (url.pathname.startsWith('/musteri/')) return true;
+    if (url.pathname.endsWith('.php')) return true;
+    return false;
+}
+
 self.addEventListener('fetch', function(event) {
     var url = new URL(event.request.url);
 
-    if (url.pathname.startsWith('/api/')) {
-        return;
-    }
-
-    if (url.pathname.startsWith('/uploads/')) {
-        return;
-    }
-
-    if (event.request.method !== 'GET') {
+    if (isNetworkOnly(url) || event.request.method !== 'GET') {
         return;
     }
 
