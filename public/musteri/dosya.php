@@ -75,6 +75,16 @@ $pageTitle = $file['file_number'];
             <p>Aracınızın güncel süreci yukarıdaki durumdur. Detay için servisinizle iletişime geçebilirsiniz.</p>
         </div>
 
+        <?php if (!empty($file['customer_message'])): ?>
+        <div class="portal-customer-message">
+            <h3>Servisten mesaj</h3>
+            <p><?= e($file['customer_message']) ?></p>
+            <?php if (!empty($file['customer_message_at'])): ?>
+            <span class="msg-meta"><?= e(date('d.m.Y H:i', strtotime((string)$file['customer_message_at']))) ?></span>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         <section class="ins-template-section">
             <h3>Kasko formları (Taahhüt / Teslim / İbra)</h3>
             <?php if (!$insCompany): ?>

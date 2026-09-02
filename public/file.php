@@ -97,6 +97,25 @@ require __DIR__ . '/../includes/header.php';
     </div>
 
     <div class="tab-content active" id="tab-docs">
+        <?php if (!empty($permissions['can_grant_customer_upload']) || !empty($permissions['can_edit'])): ?>
+        <div class="customer-msg-panel" id="customerMsgPanel">
+            <h3>Müşteriye mesaj</h3>
+            <p class="grant-hint">Bu mesaj müşteri portalında görünür. Eksik evrak veya bilgilendirme için kullanın.</p>
+            <div class="form-group">
+                <label for="customerMessageBox">Mesaj</label>
+                <textarea id="customerMessageBox" class="form-input" maxlength="2000"
+                          placeholder="Örn: Ruhsat ve ehliyet fotoğraflarını yüklemenizi rica ederiz. Sorunuz olursa bizi arayın."><?= e($file['customer_message'] ?? '') ?></textarea>
+            </div>
+            <div class="customer-msg-actions">
+                <button type="button" class="btn btn-primary" id="customerMsgSave">Mesajı kaydet</button>
+                <button type="button" class="btn btn-ghost" id="customerMsgClear">Temizle</button>
+            </div>
+            <?php if (!empty($file['customer_message_at'])): ?>
+            <p class="text-muted" style="margin-top:.5rem;font-size:.75rem">Son güncelleme: <?= e(date('d.m.Y H:i', strtotime((string)$file['customer_message_at']))) ?></p>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         <?php if (!empty($permissions['can_grant_customer_upload'])): ?>
         <div class="grant-panel" id="customerGrantPanel" data-active="<?= !empty($permissions['customer_upload_active']) ? '1' : '0' ?>">
             <div class="grant-panel-head">
@@ -446,6 +465,42 @@ require __DIR__ . '/../includes/header.php';
                 status.textContent = this.checked ? 'Açılacak (Kaydet\'e basın)' : 'Kapatılacak (Kaydet\'e basın)';
                 status.className = this.checked ? 'grant-active' : 'grant-idle';
             }
+        });
+    }
+
+    var msgSave = document.getElementById('customerMsgSave');
+    var msgClear = document.getElementById('customerMsgClear');
+    var msgBox = document.getElementById('customerMessageBox');
+    function saveCustomerMessage(text) {
+        var formData = new FormData();
+        formData.append('damage_file_id', fileId);
+        formData.append('customer_message', text || '');
+        return apiFetch('/api/customer_message.php', { method: 'POST', body: formData });
+    }
+    if (msgSave && msgBox) {
+        msgSave.addEventListener('click', function() {
+            saveCustomerMessage(msgBox.value)
+                .then(function() {
+                    showToast('Müşteri mesajı kaydedildi', 'success');
+                    setTimeout(function() { location.reload(); }, 600);
+                })
+                .catch(function(err) {
+                    showToast((err && err.error) || 'Mesaj kaydedilemedi', 'error');
+                });
+        });
+    }
+    if (msgClear && msgBox) {
+        msgClear.addEventListener('click', function() {
+            if (!confirm('Müşteri mesajı silinsin mi?')) return;
+            msgBox.value = '';
+            saveCustomerMessage('')
+                .then(function() {
+                    showToast('Mesaj temizlendi', 'success');
+                    setTimeout(function() { location.reload(); }, 600);
+                })
+                .catch(function(err) {
+                    showToast((err && err.error) || 'Hata', 'error');
+                });
         });
     }
 

@@ -44,6 +44,9 @@ function ensure_schema_upgrades(PDO $pdo): void
         || !schema_column_exists($pdo, 'damage_files', 'work_order_no')) {
         run_migration_script($scripts . 'migrate_v5.php');
     }
+    if (!schema_column_exists($pdo, 'damage_files', 'customer_message')) {
+        run_migration_script($scripts . 'migrate_v7.php');
+    }
 }
 
 function db(): PDO
