@@ -14,9 +14,9 @@ return [
         'name'          => 'OTOHASAR',
         'url'           => getenv('APP_URL') ?: 'https://otohasar.neciparmagan.net.tr',
         'timezone'      => 'Europe/Istanbul',
-        'upload_max'    => 10 * 1024 * 1024, // 10MB
+        'upload_max'    => 20 * 1024 * 1024, // 20MB
         'token_ttl'     => 30 * 24 * 3600,   // 30 days
-        'asset_version' => '16',
+        'asset_version' => '17',
     ],
     'paths' => [
         'uploads' => __DIR__ . '/../public/uploads',

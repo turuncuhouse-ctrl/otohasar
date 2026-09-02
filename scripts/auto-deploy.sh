@@ -61,9 +61,15 @@ else
         || true
 fi
 
-echo "[4b/5] php-zip kontrol..."
-docker exec -u root otohasar_php bash -lc 'php -m | grep -qi "^zip$" || (apt-get update -qq && apt-get install -y -qq libzip-dev zlib1g-dev && docker-php-ext-install zip)' 2>/dev/null \
-    || sudo docker exec -u root otohasar_php bash -lc 'php -m | grep -qi "^zip$" || (apt-get update -qq && apt-get install -y -qq libzip-dev zlib1g-dev && docker-php-ext-install zip)' 2>/dev/null \
+echo "[4b/5] php-zip + upload limit kontrol..."
+docker exec -u root otohasar_php bash -lc '
+  php -m | grep -qi "^zip$" || (apt-get update -qq && apt-get install -y -qq libzip-dev zlib1g-dev && docker-php-ext-install zip)
+  printf "upload_max_filesize=22M\npost_max_size=64M\nmax_file_uploads=25\n" > /usr/local/etc/php/conf.d/zz-upload-limits.ini
+' 2>/dev/null \
+    || sudo docker exec -u root otohasar_php bash -lc '
+  php -m | grep -qi "^zip$" || (apt-get update -qq && apt-get install -y -qq libzip-dev zlib1g-dev && docker-php-ext-install zip)
+  printf "upload_max_filesize=22M\npost_max_size=64M\nmax_file_uploads=25\n" > /usr/local/etc/php/conf.d/zz-upload-limits.ini
+' 2>/dev/null \
     || true
 
 docker restart otohasar_php 2>/dev/null || sudo docker restart otohasar_php 2>/dev/null || true

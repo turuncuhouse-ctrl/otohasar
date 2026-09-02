@@ -34,7 +34,19 @@
 <?php endif; ?>
 <script>
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js?v=<?= e($assetVer) ?>').catch(function(){});
+    var swUrl = '/sw.js?v=<?= e($assetVer) ?>';
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+        return Promise.all(regs.map(function(reg) {
+            if (reg.active && reg.active.scriptURL && reg.active.scriptURL.indexOf('sw.js') !== -1) {
+                return reg.update();
+            }
+            return null;
+        }));
+    }).finally(function() {
+        navigator.serviceWorker.register(swUrl).then(function(reg) {
+            if (reg && reg.update) reg.update();
+        }).catch(function(){});
+    });
 }
 </script>
 </body>

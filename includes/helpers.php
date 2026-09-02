@@ -331,7 +331,7 @@ function upload_error_message(int $code, string $name): string
 {
     $label = $name !== '' ? $name . ': ' : '';
     return match ($code) {
-        UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => $label . 'Dosya boyutu limiti aşıldı (max 10MB)',
+        UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => $label . 'Dosya boyutu limiti aşıldı (max 20MB)',
         UPLOAD_ERR_PARTIAL => $label . 'Yükleme yarım kaldı, tekrar deneyin',
         UPLOAD_ERR_NO_FILE => $label . 'Dosya seçilmedi',
         default => $label . 'Yükleme hatası (kod ' . $code . ')',

@@ -61,7 +61,7 @@ foreach ($incoming as $item) {
     }
 
     if ($size > $config['app']['upload_max']) {
-        $errors[] = "$origName: 10MB limiti aşıldı";
+        $errors[] = "$origName: 20MB limiti aşıldı";
         continue;
     }
 
