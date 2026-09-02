@@ -24,18 +24,23 @@ echo "[1/5] Git fetch + reset..."
 git fetch origin
 git reset --hard "origin/${BRANCH}"
 
-echo "[2/5] Satir sonlari duzeltiliyor..."
+echo "[2/5] Versioned asset kopyalari..."
+ASSET_VER=$(grep -oP "'asset_version'\s*=>\s*'\K[0-9]+" config/config.php || echo "13")
+cp public/assets/js/app.js "public/assets/js/app.${ASSET_VER}.js"
+cp public/assets/css/style.css "public/assets/css/style.${ASSET_VER}.css"
+
+echo "[3/5] Satir sonlari duzeltiliyor..."
 sed -i 's/\r$//' docker/entrypoint.sh 2>/dev/null || true
 find scripts -name '*.sh' -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
 
-echo "[3/5] Legacy kok dizin senkronu (eski volume mount)..."
+echo "[4/5] Legacy kok dizin senkronu (eski volume mount)..."
 if [ "$APP_DIR" != "$DATA_ROOT" ] && [ -d "$DATA_ROOT" ]; then
     rsync -a --delete \
         --exclude data --exclude env --exclude app \
         "$APP_DIR/" "$DATA_ROOT/"
 fi
 
-echo "[4/5] Container/stack guncelleme..."
+echo "[5/5] Container/stack guncelleme..."
 if docker stack ls 2>/dev/null | grep -qE '^otohasar '; then
     echo "  -> Docker Swarm stack-deploy"
     DATA_ROOT="$DATA_ROOT" APP_DIR="$APP_DIR" BRANCH="$BRANCH" ./scripts/stack-deploy.sh "$BRANCH"
@@ -85,14 +90,14 @@ docker ps --filter name=otohasar_ --format 'table {{.Names}}\t{{.Status}}' 2>/de
     || sudo docker ps --filter name=otohasar_ --format 'table {{.Names}}\t{{.Status}}' 2>/dev/null \
     || true
 
-if ! curl -sf "http://127.0.0.1:${HTTP_PORT}/assets/js/app.js" | grep -q snapshotInputFiles; then
-    echo "HATA: Canli app.js guncellenmedi (snapshotInputFiles yok)."
+if ! curl -sf "http://127.0.0.1:${HTTP_PORT}/assets/js/app.${ASSET_VER}.js" | grep -q snapshotInputFiles; then
+    echo "HATA: Canli app.${ASSET_VER}.js guncellenmedi."
     echo "  Kontrol: curl http://127.0.0.1:${HTTP_PORT}/assets/js/app.js | head"
     exit 1
 fi
 
-if ! curl -sf "http://127.0.0.1:${HTTP_PORT}/login.php" | grep -q 'app.js?v=12'; then
-    echo "UYARI: asset_version hala 12 degil — config.php kontrol edin."
+if ! curl -sf "http://127.0.0.1:${HTTP_PORT}/login.php" | grep -q "app.${ASSET_VER}.js"; then
+    echo "UYARI: asset JS yolu guncellenmedi — footer.php kontrol edin."
 fi
 
 echo ""

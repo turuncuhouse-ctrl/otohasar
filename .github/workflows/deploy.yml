@@ -43,6 +43,10 @@ jobs:
                 "$APP/" "$DATA/"
             fi
 
+            ASSET_VER=$(grep -oP "'asset_version'\s*=>\s*'\K[0-9]+" "$APP/config/config.php" || echo "13")
+            cp "$APP/public/assets/js/app.js" "$APP/public/assets/js/app.${ASSET_VER}.js"
+            cp "$APP/public/assets/css/style.css" "$APP/public/assets/css/style.${ASSET_VER}.css"
+
             test -f "$APP/public/assets/js/app.js"
             grep -q snapshotInputFiles "$APP/public/assets/js/app.js"
 
@@ -51,7 +55,7 @@ jobs:
             ./scripts/auto-deploy.sh "$BRANCH"
 
             echo "=== Post-deploy verify ==="
-            curl -sf "http://127.0.0.1:4080/assets/js/app.js" | grep -q snapshotInputFiles
-            curl -sf "http://127.0.0.1:4080/sw.js" | grep -q 'otohasar-shell-v12'
+            curl -sf "http://127.0.0.1:4080/assets/js/app.${ASSET_VER}.js" | grep -q snapshotInputFiles
+            curl -sf "http://127.0.0.1:4080/sw.js" | grep -q 'otohasar-shell-v13'
 
             echo "Deploy OK"

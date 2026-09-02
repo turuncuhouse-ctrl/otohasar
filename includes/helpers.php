@@ -31,6 +31,21 @@ function app_config(): array
     return $config;
 }
 
+function asset_version(): string
+{
+    return (string) (app_config()['app']['asset_version'] ?? '7');
+}
+
+function asset_js_url(): string
+{
+    return '/assets/js/app.' . asset_version() . '.js';
+}
+
+function asset_css_url(): string
+{
+    return '/assets/css/style.' . asset_version() . '.css';
+}
+
 function status_labels(): array
 {
     static $cache = null;

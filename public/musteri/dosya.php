@@ -43,7 +43,7 @@ $pageTitle = $file['file_number'];
     <meta name="theme-color" content="#0f172a">
     <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
     <title><?= e($pageTitle) ?> — OTOHASAR</title>
-    <link rel="stylesheet" href="/assets/css/style.css?v=12">
+    <link rel="stylesheet" href="<?= e(asset_css_url()) ?>">
 </head>
 <body class="portal-body">
 <main class="portal-wrap">
@@ -127,7 +127,7 @@ $pageTitle = $file['file_number'];
     </div>
 </main>
 <div id="toastContainer" class="toast-container"></div>
-<script src="/assets/js/app.js?v=12"></script>
+<script src="<?= e(asset_js_url()) ?>"></script>
 <script>
 (function() {
     var fileId = <?= (int)$fileId ?>;

@@ -5,7 +5,7 @@ if (!isset($pageTitle)) {
 }
 $currentUser = $currentUser ?? null;
 $role = $currentUser['role'] ?? '';
-$assetVer = app_config()['app']['asset_version'] ?? '7';
+$assetVer = asset_version();
 ?>
 <!DOCTYPE html>
 <html lang="tr">
@@ -19,7 +19,7 @@ $assetVer = app_config()['app']['asset_version'] ?? '7';
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/assets/css/style.css?v=<?= e($assetVer) ?>">
+    <link rel="stylesheet" href="<?= e(asset_css_url()) ?>">
     <?php if ($currentUser): ?>
     <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
     <?php endif; ?>

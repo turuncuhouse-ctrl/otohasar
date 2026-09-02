@@ -27,8 +27,8 @@
 </nav>
 <?php endif; ?>
 <div id="toastContainer" class="toast-container"></div>
-<?php $assetVer = app_config()['app']['asset_version'] ?? '7'; ?>
-<script src="/assets/js/app.js?v=<?= e($assetVer) ?>"></script>
+<?php $assetVer = asset_version(); ?>
+<script src="<?= e(asset_js_url()) ?>"></script>
 <?php if (isset($pageScript)): ?>
 <script><?= $pageScript ?></script>
 <?php endif; ?>
