@@ -24,29 +24,18 @@ jobs:
             DATA=/mnt/1tb_disk/otohasar
             BRANCH=${{ github.ref_name }}
             ARCHIVE="https://codeload.github.com/turuncuhouse-ctrl/otohasar/tar.gz/refs/heads/${BRANCH}"
-            export GIT_TERMINAL_PROMPT=0
 
             mkdir -p "$DATA/data/mysql" "$DATA/data/uploads" "$APP"
+            TMP=$(mktemp -d)
 
-            sync_from_tarball() {
-              echo "=== Tarball sync ($BRANCH) ==="
-              TMP=$(mktemp -d)
-              curl -fsSL "$ARCHIVE" -o "$TMP/src.tar.gz"
-              mkdir -p "$TMP/extract"
-              tar -xzf "$TMP/src.tar.gz" -C "$TMP/extract"
-              SRC=$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d | head -1)
-              rsync -a --delete --exclude data --exclude env --exclude .git "$SRC/" "$APP/"
-              rm -rf "$TMP"
-            }
-
-            echo "=== Sync code into $APP ==="
-            if [ -d "$APP/.git" ] && git -C "$APP" fetch --depth 1 origin "$BRANCH"; then
-              git -C "$APP" checkout -B "$BRANCH" "FETCH_HEAD"
-              git -C "$APP" reset --hard "FETCH_HEAD"
-            else
-              echo "git fetch unavailable — using tarball"
-              sync_from_tarball
-            fi
+            echo "=== Tarball sync ($BRANCH) ==="
+            curl -fsSL "$ARCHIVE" -o "$TMP/src.tar.gz"
+            mkdir -p "$TMP/extract"
+            tar -xzf "$TMP/src.tar.gz" -C "$TMP/extract"
+            SRC=$(find "$TMP/extract" -mindepth 1 -maxdepth 1 -type d | head -1)
+            test -n "$SRC"
+            rsync -a --delete --exclude data --exclude env --exclude .git "$SRC/" "$APP/"
+            rm -rf "$TMP"
 
             if [ -d "$DATA/public" ] || [ -f "$DATA/Dockerfile" ]; then
               echo "=== Legacy root sync to $DATA ==="
@@ -62,7 +51,7 @@ jobs:
             test -f "$APP/public/assets/js/app.js"
             grep -q snapshotInputFiles "$APP/public/assets/js/app.js"
             grep -q uploadNext "$APP/public/assets/js/app.js"
-            grep -q 'cat-input" multiple' "$APP/public/file.php" || grep -q 'cat-input multiple' "$APP/public/file.php"
+            grep -q 'cat-input" multiple' "$APP/public/file.php"
 
             cd "$APP"
             chmod +x scripts/*.sh
@@ -71,6 +60,5 @@ jobs:
             echo "=== Post-deploy verify ==="
             curl -sf "http://127.0.0.1:4080/assets/js/app.${ASSET_VER}.js" | grep -q uploadNext
             curl -sf "http://127.0.0.1:4080/sw.js" | grep -q "otohasar-shell-v${ASSET_VER}"
-            curl -sf "http://127.0.0.1:4080/file.php" >/dev/null || true
 
             echo "Deploy OK"

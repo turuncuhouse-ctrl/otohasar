@@ -33,10 +33,10 @@ echo "URL:  ${APP_URL}"
 
 cd "$APP_DIR"
 
-# Git pull (varsa)
+# Git pull (varsa) — auth yoksa mevcut dosyalarla devam
 if [ -d .git ]; then
     echo "Git pull..."
-    git pull --ff-only origin "${BRANCH:-main}" || true
+    git pull --ff-only origin "${BRANCH:-main}" || echo "UYARI: git pull atlandi"
 fi
 
 # PHP imajını build et

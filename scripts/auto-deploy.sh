@@ -14,17 +14,7 @@ echo "=== OTOHASAR auto-deploy ==="
 echo "App:  $APP_DIR"
 echo "Data: $DATA_ROOT"
 echo "Branch: $BRANCH"
-
-if [ ! -d .git ]; then
-    echo "UYARI: $APP_DIR git reposu degil — dosyalar oldugu gibi kullanilacak."
-else
-    echo "[1/5] Git fetch + reset..."
-    if git fetch origin "$BRANCH"; then
-        git reset --hard "origin/${BRANCH}" || git reset --hard "FETCH_HEAD" || true
-    else
-        echo "UYARI: git fetch basarisiz — mevcut dosyalar korunuyor."
-    fi
-fi
+echo "[1/5] Kod zaten deploy workflow ile senkron — git atlanıyor."
 
 echo "[2/5] Versioned asset kopyalari..."
 ASSET_VER=$(grep -oP "'asset_version'\s*=>\s*'\K[0-9]+" config/config.php || echo "14")
