@@ -11,6 +11,43 @@ function schema_column_exists(PDO $pdo, string $table, string $column): bool
     return (int) $stmt->fetchColumn() > 0;
 }
 
+function schema_table_exists(PDO $pdo, string $table): bool
+{
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM information_schema.TABLES
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+    );
+    $stmt->execute([$table]);
+    return (int) $stmt->fetchColumn() > 0;
+}
+
+function ensure_app_migrations_table(PDO $pdo): void
+{
+    if (schema_table_exists($pdo, 'app_migrations')) {
+        return;
+    }
+    $pdo->exec(
+        "CREATE TABLE app_migrations (
+            name VARCHAR(100) NOT NULL PRIMARY KEY,
+            applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+function migration_applied(PDO $pdo, string $name): bool
+{
+    ensure_app_migrations_table($pdo);
+    $stmt = $pdo->prepare('SELECT 1 FROM app_migrations WHERE name = ? LIMIT 1');
+    $stmt->execute([$name]);
+    return (bool) $stmt->fetchColumn();
+}
+
+function mark_migration_applied(PDO $pdo, string $name): void
+{
+    ensure_app_migrations_table($pdo);
+    $pdo->prepare('INSERT IGNORE INTO app_migrations (name) VALUES (?)')->execute([$name]);
+}
+
 function run_migration_script(string $script): void
 {
     if (!is_file($script)) {
@@ -34,6 +71,8 @@ function ensure_schema_upgrades(PDO $pdo): void
     $done = true;
 
     $scripts = __DIR__ . '/../scripts/';
+    ensure_app_migrations_table($pdo);
+
     if (!schema_column_exists($pdo, 'damage_files', 'workshop_upload_until')) {
         run_migration_script($scripts . 'migrate_v3.php');
     }
@@ -53,30 +92,17 @@ function ensure_schema_upgrades(PDO $pdo): void
     if (!schema_column_exists($pdo, 'app_categories', 'description')) {
         run_migration_script($scripts . 'migrate_v9.php');
     }
-    $stmt = $pdo->prepare(
-        'SELECT COUNT(*) FROM information_schema.TABLES
-         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
-    );
-    $stmt->execute(['insurance_doc_templates']);
-    if ((int) $stmt->fetchColumn() === 0) {
+    if (!schema_table_exists($pdo, 'insurance_doc_templates')) {
         run_migration_script($scripts . 'migrate_v6.php');
+    } elseif (!migration_applied($pdo, 'v6_category_seed')) {
+        // Mark existing installs so category seed is not re-run on every deploy
+        mark_migration_applied($pdo, 'v6_category_seed');
     }
-    try {
-        $hasTemlik = (int) $pdo->query(
-            "SELECT COUNT(*) FROM app_categories WHERE code = 'temlik'"
-        )->fetchColumn();
-        if ($hasTemlik === 0) {
-            run_migration_script($scripts . 'migrate_v10.php');
-        }
-    } catch (Throwable $e) {
-        // categories table may not exist yet
+    if (!migration_applied($pdo, 'v10_category_seed')) {
+        // First time after this fix: seed missing insurance categories once, then never again
+        run_migration_script($scripts . 'migrate_v10.php');
     }
-    $stmt = $pdo->prepare(
-        'SELECT COUNT(*) FROM information_schema.TABLES
-         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
-    );
-    $stmt->execute(['wa_templates']);
-    if ((int) $stmt->fetchColumn() === 0) {
+    if (!schema_table_exists($pdo, 'wa_templates')) {
         run_migration_script($scripts . 'migrate_v11.php');
     }
     if (!schema_column_exists($pdo, 'damage_files', 'damage_date')
@@ -86,12 +112,7 @@ function ensure_schema_upgrades(PDO $pdo): void
     if (!schema_column_exists($pdo, 'vehicles', 'odometer_km')) {
         run_migration_script($scripts . 'migrate_v13.php');
     }
-    $stmt = $pdo->prepare(
-        'SELECT COUNT(*) FROM information_schema.TABLES
-         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
-    );
-    $stmt->execute(['cover_form_fields']);
-    $hasCover = (int) $stmt->fetchColumn() > 0;
+    $hasCover = schema_table_exists($pdo, 'cover_form_fields');
     if (!$hasCover || !schema_column_exists($pdo, 'app_categories', 'form_field_code')) {
         run_migration_script($scripts . 'migrate_v14.php');
     }

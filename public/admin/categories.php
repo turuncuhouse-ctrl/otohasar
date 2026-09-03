@@ -224,6 +224,7 @@ require __DIR__ . '/../../includes/header.php';
 
 <p class="dash-sub" style="margin-bottom:1rem">
     Yükleme ekranındaki evrak türlerini ekleyin, sıralayın ve kapak formundaki kutuya bağlayın.
+    Kurulumda eklenen kategoriler de silinebilir; silinenler otomatik geri gelmez.
 </p>
 
 <?php if ($message): ?><div class="alert alert-success"><?= e($message) ?></div><?php endif; ?>

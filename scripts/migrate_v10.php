@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 /**
- * Idempotent migration v10 — Temlik category for insurance forms.
+ * Idempotent migration v10 — Temlik category for insurance forms (one-time seed).
  */
 require_once __DIR__ . '/../includes/db.php';
 
@@ -9,13 +9,18 @@ $pdo = db();
 
 echo "Migrating v10...\n";
 
+if (migration_applied($pdo, 'v10_category_seed')) {
+    echo "skip v10 category seed (already applied — deleted categories stay deleted)\n";
+    echo "Done v10.\n";
+    return;
+}
+
 $ins = $pdo->prepare(
     'INSERT INTO app_categories (code, label, description, sort_order, is_required, is_active)
      SELECT ?, ?, ?, ?, ?, 1 FROM DUAL
      WHERE NOT EXISTS (SELECT 1 FROM app_categories WHERE code = ?)'
 );
 
-// description column may be missing on very old DBs — fallback without it
 try {
     foreach (
         [
@@ -45,5 +50,6 @@ try {
     }
 }
 
-echo "OK app_categories temlik (+ taahhut/teslim/ibra ensure)\n";
+mark_migration_applied($pdo, 'v10_category_seed');
+echo "OK app_categories temlik (+ taahhut/teslim/ibra) one-time seed\n";
 echo "Done v10.\n";

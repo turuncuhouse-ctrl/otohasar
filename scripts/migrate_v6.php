@@ -71,14 +71,19 @@ $cats = [
     ['teslim', 'Teslim', 81, 0],
     ['ibra', 'İbra', 82, 0],
 ];
-$ins = $pdo->prepare(
-    'INSERT INTO app_categories (code, label, sort_order, is_required, is_active)
-     SELECT ?, ?, ?, ?, 1 FROM DUAL
-     WHERE NOT EXISTS (SELECT 1 FROM app_categories WHERE code = ?)'
-);
-foreach ($cats as [$code, $label, $sort, $req]) {
-    $ins->execute([$code, $label, $sort, $req, $code]);
+if (migration_applied($pdo, 'v6_category_seed')) {
+    echo "skip v6 category seed (already applied)\n";
+} else {
+    $ins = $pdo->prepare(
+        'INSERT INTO app_categories (code, label, sort_order, is_required, is_active)
+         SELECT ?, ?, ?, ?, 1 FROM DUAL
+         WHERE NOT EXISTS (SELECT 1 FROM app_categories WHERE code = ?)'
+    );
+    foreach ($cats as [$code, $label, $sort, $req]) {
+        $ins->execute([$code, $label, $sort, $req, $code]);
+    }
+    mark_migration_applied($pdo, 'v6_category_seed');
+    echo "OK app_categories taahhut/teslim/ibra (one-time seed)\n";
 }
-echo "OK app_categories taahhut/teslim/ibra\n";
 
 echo "Done v6.\n";
