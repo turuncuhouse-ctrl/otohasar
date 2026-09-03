@@ -28,7 +28,10 @@ function flash_take(): ?array
 
 function admin_redirect(string $path): void
 {
-    header('Location: ' . $path);
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+    header('Location: ' . $path, true, 303);
     exit;
 }
 

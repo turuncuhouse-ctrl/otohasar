@@ -136,22 +136,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
             admin_redirect('/admin/categories.php');
         }
         try {
-            $inUse = $pdo->prepare('SELECT COUNT(*) FROM file_documents WHERE category = ?');
-            $inUse->execute([(string) $row['code']]);
-            $used = (int) $inUse->fetchColumn();
-            if ($used > 0) {
-                $pdo->prepare('UPDATE app_categories SET is_active = 0 WHERE id = ?')->execute([$id]);
-                flash_set(
-                    'error',
-                    $row['label'] . ' silinemedi: ' . $used . ' evrak bu kategoride. Yükleme listesinden kaldırıldı (pasif). Tam silmek için evrakları başka kategoriye alın.'
-                );
-            } else {
-                $pdo->prepare('DELETE FROM app_categories WHERE id = ?')->execute([$id]);
-                flash_set('success', $row['label'] . ' silindi');
+            $used = 0;
+            try {
+                $inUse = $pdo->prepare('SELECT COUNT(*) FROM file_documents WHERE category = ?');
+                $inUse->execute([(string) $row['code']]);
+                $used = (int) $inUse->fetchColumn();
+            } catch (Throwable $e) {
+                $used = 0;
             }
+            $del = $pdo->prepare('DELETE FROM app_categories WHERE id = ?');
+            $del->execute([$id]);
+            if ($del->rowCount() < 1) {
+                flash_set('error', $row['label'] . ' silinemedi (kayıt kilitli olabilir).');
+                admin_redirect('/admin/categories.php');
+            }
+            $extra = $used > 0
+                ? ' Yüklü ' . $used . ' evrak duruyor; yükleme listesinde bu kategori artık çıkmaz.'
+                : '';
+            flash_set('success', $row['label'] . ' silindi.' . $extra);
         } catch (Throwable $e) {
-            $pdo->prepare('UPDATE app_categories SET is_active = 0 WHERE id = ?')->execute([$id]);
-            flash_set('error', 'Silme yapılamadı, kategori pasife alındı.');
+            flash_set('error', 'Silme yapılamadı: ' . $e->getMessage());
         }
         admin_redirect('/admin/categories.php');
     } elseif ($action === 'map') {
@@ -226,6 +230,7 @@ require __DIR__ . '/../../includes/header.php';
 <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
 
 <div class="admin-layout">
+    <div>
     <form method="post" class="admin-form-card" id="catSaveForm">
         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
         <input type="hidden" name="action" value="save">
@@ -288,6 +293,15 @@ require __DIR__ . '/../../includes/header.php';
         <a class="btn btn-ghost btn-block" href="/admin/categories.php">İptal / Yeni kategori</a>
         <?php endif; ?>
     </form>
+    <?php if ($isEdit): ?>
+    <form method="post" class="admin-form-card" onsubmit="return confirm('<?= e($edit['label']) ?> silinsin mi?')">
+        <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="id" value="<?= (int)$edit['id'] ?>">
+        <button class="btn btn-ghost btn-block" type="submit">Bu kategoriyi sil</button>
+    </form>
+    <?php endif; ?>
+    </div>
 
     <div class="admin-table-wrap">
         <table class="report-table">
@@ -349,12 +363,8 @@ require __DIR__ . '/../../includes/header.php';
                 <td><?= !empty($r['is_active']) ? 'Evet' : 'Hayır' ?></td>
                 <td class="table-actions">
                     <a class="btn btn-sm btn-primary" href="?edit=<?= (int)$r['id'] ?>">Düzenle</a>
-                    <form method="post" class="inline-form" onsubmit="return confirm('Bu kategori silinsin mi? Yüklü evrak varsa silinmez, pasife alınır.')">
-                        <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-                        <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
-                        <button class="btn btn-sm btn-ghost" type="submit">Sil</button>
-                    </form>
+                    <button class="btn btn-sm btn-ghost" type="submit" form="cat-del-<?= (int)$r['id'] ?>"
+                            onclick="return confirm('<?= e($r['label']) ?> silinsin mi?')">Sil</button>
                 </td>
             </tr>
             <?php endforeach; ?>
@@ -363,6 +373,13 @@ require __DIR__ . '/../../includes/header.php';
             <?php endif; ?>
             </tbody>
         </table>
+        <?php foreach ($rows as $r): ?>
+        <form id="cat-del-<?= (int)$r['id'] ?>" method="post" hidden>
+            <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
+        </form>
+        <?php endforeach; ?>
     </div>
 </div>
 
