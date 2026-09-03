@@ -253,6 +253,7 @@ function insurance_form_doc_types(): array
         'taahhut' => 'Taahhüt',
         'teslim'  => 'Teslim',
         'ibra'    => 'İbra',
+        'temlik'  => 'Temlik',
     ];
 }
 
@@ -276,6 +277,21 @@ function find_insurance_company_by_name(?string $name): ?array
     }
 }
 
+function find_insurance_company_by_id(int $id): ?array
+{
+    if ($id <= 0) {
+        return null;
+    }
+    try {
+        $stmt = db()->prepare('SELECT * FROM insurance_companies WHERE id = ? LIMIT 1');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
 function insurance_templates_for_company(int $companyId, bool $activeOnly = true): array
 {
     try {
@@ -283,7 +299,7 @@ function insurance_templates_for_company(int $companyId, bool $activeOnly = true
         if ($activeOnly) {
             $sql .= ' AND is_active = 1';
         }
-        $sql .= ' ORDER BY FIELD(doc_type, \'taahhut\', \'teslim\', \'ibra\'), id';
+        $sql .= ' ORDER BY FIELD(doc_type, \'taahhut\', \'teslim\', \'ibra\', \'temlik\'), id';
         $stmt = db()->prepare($sql);
         $stmt->execute([$companyId]);
         return $stmt->fetchAll();

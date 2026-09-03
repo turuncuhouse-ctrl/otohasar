@@ -20,34 +20,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
     if ($action === 'save') {
         $id = (int) ($_POST['id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
-        $labor = (float) ($_POST['labor_discount'] ?? 0);
-        $parts = (float) ($_POST['parts_discount'] ?? 0);
+        $labor = (float) str_replace(',', '.', (string) ($_POST['labor_discount'] ?? '0'));
+        $parts = (float) str_replace(',', '.', (string) ($_POST['parts_discount'] ?? '0'));
         $note = trim($_POST['note'] ?? '');
         $active = isset($_POST['is_active']) ? 1 : 0;
+        if ($labor < 0) {
+            $labor = 0;
+        }
+        if ($labor > 100) {
+            $labor = 100;
+        }
+        if ($parts < 0) {
+            $parts = 0;
+        }
+        if ($parts > 100) {
+            $parts = 100;
+        }
         if ($name === '') {
             $error = 'Şirket adı zorunlu';
         } else {
             try {
                 if ($id > 0) {
-                    $pdo->prepare('UPDATE insurance_companies SET name=?, labor_discount=?, parts_discount=?, note=?, is_active=? WHERE id=?')
-                        ->execute([$name, $labor, $parts, $note ?: null, $active, $id]);
+                    $pdo->prepare(
+                        'UPDATE insurance_companies SET name=?, labor_discount=?, parts_discount=?, note=?, is_active=? WHERE id=?'
+                    )->execute([$name, $labor, $parts, $note !== '' ? $note : null, $active, $id]);
                 } else {
-                    $pdo->prepare('INSERT INTO insurance_companies (name, labor_discount, parts_discount, note, is_active) VALUES (?,?,?,?,?)')
-                        ->execute([$name, $labor, $parts, $note ?: null, $active]);
+                    $pdo->prepare(
+                        'INSERT INTO insurance_companies (name, labor_discount, parts_discount, note, is_active) VALUES (?,?,?,?,?)'
+                    )->execute([$name, $labor, $parts, $note !== '' ? $note : null, $active]);
                     $id = (int) $pdo->lastInsertId();
                 }
-                $message = 'Sigorta şirketi kaydedildi';
-                if ($id > 0) {
-                    header('Location: /admin/insurance.php?edit=' . $id . '&ok=1');
-                    exit;
-                }
+                header('Location: /admin/insurance.php?edit=' . $id . '&ok=1');
+                exit;
             } catch (Throwable $e) {
-                $error = 'Kayıt hatası (isim benzersiz olmalı)';
+                $error = 'Kayıt hatası (şirket adı benzersiz olmalı)';
             }
         }
     } elseif ($action === 'delete') {
-        $pdo->prepare('DELETE FROM insurance_companies WHERE id=?')->execute([(int) ($_POST['id'] ?? 0)]);
-        $message = 'Silindi';
+        $id = (int) ($_POST['id'] ?? 0);
+        try {
+            $pdo->prepare('DELETE FROM insurance_companies WHERE id=?')->execute([$id]);
+            $message = 'Şirket silindi';
+        } catch (Throwable $e) {
+            $error = 'Silinemedi';
+        }
     } elseif ($action === 'save_template') {
         $companyId = (int) ($_POST['company_id'] ?? 0);
         $docType = (string) ($_POST['doc_type'] ?? '');
@@ -55,15 +71,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
         if ($companyId <= 0 || !isset($formTypes[$docType])) {
             $error = 'Geçersiz şablon bilgisi';
         } elseif (empty($_FILES['template_file']['name'])) {
-            $error = 'Şablon dosyası seçin (PDF veya görsel)';
+            $error = 'PDF şablon dosyası seçin';
         } else {
-            $company = null;
-            foreach (insurance_companies(false) as $c) {
-                if ((int) $c['id'] === $companyId) {
-                    $company = $c;
-                    break;
-                }
-            }
+            $company = find_insurance_company_by_id($companyId);
             if (!$company) {
                 $error = 'Şirket bulunamadı';
             } else {
@@ -75,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
                 } else {
                     $validated = validate_document_mime($item['tmp_name'], $item['name']);
                     if (!$validated) {
-                        $error = 'Geçersiz dosya türü (PDF, JPEG, PNG, WebP)';
+                        $error = 'Geçersiz dosya türü (PDF önerilir; JPEG/PNG de kabul edilir)';
                     } else {
                         $dir = template_storage_dir($companyId);
                         $filename = random_filename($validated['ext']);
@@ -99,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
                                          WHERE id=?'
                                     )->execute([$title, $rel, $item['name'], $validated['mime'], (int) $old['id']]);
                                     $oldAbs = rtrim((string) app_config()['paths']['uploads'], '/\\') . '/' . $old['file_path'];
-                                    if (is_file($oldAbs)) {
+                                    if (is_file($oldAbs) && realpath($oldAbs) !== realpath($dest)) {
                                         @unlink($oldAbs);
                                     }
                                 } else {
@@ -113,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
                                 exit;
                             } catch (Throwable $e) {
                                 @unlink($dest);
-                                $error = 'Şablon veritabanına yazılamadı (migrate_v6 çalıştırılmış mı?)';
+                                $error = 'Şablon kaydedilemedi. Veritabanı migrasyonu (v6) çalışmış mı?';
                             }
                         }
                     }
@@ -144,6 +154,19 @@ if (isset($_GET['ok'])) {
 }
 
 $rows = $pdo->query('SELECT * FROM insurance_companies ORDER BY name')->fetchAll();
+$templateCounts = [];
+try {
+    $cntRows = $pdo->query(
+        'SELECT insurance_company_id, COUNT(*) AS c
+         FROM insurance_doc_templates WHERE is_active = 1
+         GROUP BY insurance_company_id'
+    )->fetchAll();
+    foreach ($cntRows as $cr) {
+        $templateCounts[(int) $cr['insurance_company_id']] = (int) $cr['c'];
+    }
+} catch (Throwable $e) {
+}
+
 $editId = (int) ($_GET['edit'] ?? 0);
 $edit = null;
 foreach ($rows as $r) {
@@ -152,84 +175,168 @@ foreach ($rows as $r) {
         break;
     }
 }
-$editTemplates = $edit ? insurance_templates_for_company((int) $edit['id'], false) : [];
+$isEdit = $edit !== null;
+$editTemplates = $isEdit ? insurance_templates_for_company((int) $edit['id'], false) : [];
 $editByType = [];
 foreach ($editTemplates as $t) {
     $editByType[$t['doc_type']] = $t;
 }
+$formTypeCount = count($formTypes);
 
 require __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="page-header">
     <h1>Anlaşmalı Sigorta Şirketleri</h1>
-    <a href="/admin/" class="btn btn-ghost btn-sm">← Sistem Ayarları</a>
+    <div class="page-header-actions">
+        <a href="/admin/insurance.php" class="btn btn-primary btn-sm">+ Yeni Şirket</a>
+        <a href="/admin/" class="btn btn-ghost btn-sm">← Sistem Ayarları</a>
+    </div>
 </div>
+
+<p class="dash-sub" style="margin-bottom:1rem">
+    Anlaşmalı kasko şirketlerini ekleyin; işçilik / parça iskontosu girin.
+    Her şirket için Taahhüt, Teslim, İbra ve Temlik PDF şablonlarını yükleyin —
+    müşteri portalında yalnızca dosyadaki sigorta şirketine ait formlar görünür.
+</p>
+
 <?php if ($message): ?><div class="alert alert-success"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
 
 <div class="admin-layout">
-    <form method="post" class="admin-form-card">
+    <form method="post" class="admin-form-card" id="companyForm">
         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
         <input type="hidden" name="action" value="save">
-        <input type="hidden" name="id" value="<?= (int)($edit['id'] ?? 0) ?>">
-        <h2><?= $edit ? 'Şirket Düzenle' : 'Yeni Şirket' ?></h2>
-        <div class="form-group"><label>Şirket Adı</label><input class="form-input" name="name" required value="<?= e($edit['name'] ?? '') ?>"></div>
-        <div class="form-row">
-            <div class="form-group"><label>İşçilik İskontosu %</label><input class="form-input" type="number" step="0.01" min="0" max="100" name="labor_discount" value="<?= e((string)($edit['labor_discount'] ?? '0')) ?>"></div>
-            <div class="form-group"><label>Parça İskontosu %</label><input class="form-input" type="number" step="0.01" min="0" max="100" name="parts_discount" value="<?= e((string)($edit['parts_discount'] ?? '0')) ?>"></div>
+        <input type="hidden" name="id" value="<?= $isEdit ? (int)$edit['id'] : 0 ?>">
+        <h2><?= $isEdit ? 'Şirket Düzenle' : 'Yeni Anlaşmalı Şirket' ?></h2>
+
+        <div class="form-group">
+            <label>Şirket adı</label>
+            <input class="form-input" name="name" required maxlength="120"
+                   value="<?= e($edit['name'] ?? '') ?>" placeholder="Örn: Anadolu Sigorta">
         </div>
-        <div class="form-group"><label>Not</label><input class="form-input" name="note" value="<?= e($edit['note'] ?? '') ?>"></div>
-        <label class="check-row"><input type="checkbox" name="is_active" <?= !$edit || !empty($edit['is_active']) ? 'checked' : '' ?>> Aktif / Anlaşmalı</label>
-        <button class="btn btn-primary btn-block" type="submit">Kaydet</button>
+        <div class="form-row">
+            <div class="form-group">
+                <label>İşçilik iskontosu %</label>
+                <input class="form-input" type="number" step="0.01" min="0" max="100"
+                       name="labor_discount" value="<?= e((string)($edit['labor_discount'] ?? '0')) ?>">
+            </div>
+            <div class="form-group">
+                <label>Parça iskontosu %</label>
+                <input class="form-input" type="number" step="0.01" min="0" max="100"
+                       name="parts_discount" value="<?= e((string)($edit['parts_discount'] ?? '0')) ?>">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Not (opsiyonel)</label>
+            <input class="form-input" name="note" value="<?= e($edit['note'] ?? '') ?>"
+                   placeholder="İç not">
+        </div>
+        <label class="check-row">
+            <input type="checkbox" name="is_active" <?= !$isEdit || !empty($edit['is_active']) ? 'checked' : '' ?>>
+            Aktif / Anlaşmalı (yeni dosyada seçilebilir)
+        </label>
+        <button class="btn btn-primary btn-block" type="submit">
+            <?= $isEdit ? 'Şirketi Güncelle' : 'Şirket Ekle' ?>
+        </button>
+        <?php if ($isEdit): ?>
+        <a class="btn btn-ghost btn-block" href="/admin/insurance.php">İptal / Yeni şirket</a>
+        <?php endif; ?>
     </form>
+
     <div class="admin-table-wrap">
         <table class="report-table">
-            <thead><tr><th>Şirket</th><th>İşçilik %</th><th>Parça %</th><th>Aktif</th><th></th></tr></thead>
-            <tbody>
-            <?php foreach ($rows as $r): ?>
+            <thead>
             <tr>
-                <td><?= e($r['name']) ?><?php if ($r['note']): ?><br><small class="text-muted"><?= e($r['note']) ?></small><?php endif; ?></td>
-                <td><?= e((string)$r['labor_discount']) ?></td>
-                <td><?= e((string)$r['parts_discount']) ?></td>
-                <td><?= $r['is_active'] ? 'Evet' : 'Hayır' ?></td>
+                <th>Şirket</th>
+                <th>İşçilik %</th>
+                <th>Parça %</th>
+                <th>Formlar</th>
+                <th>Aktif</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($rows as $r):
+                $tid = (int) $r['id'];
+                $tc = $templateCounts[$tid] ?? 0;
+            ?>
+            <tr class="<?= empty($r['is_active']) ? 'row-inactive' : '' ?>">
+                <td>
+                    <?= e($r['name']) ?>
+                    <?php if (!empty($r['note'])): ?>
+                    <br><small class="text-muted"><?= e($r['note']) ?></small>
+                    <?php endif; ?>
+                </td>
+                <td><?= e(rtrim(rtrim(number_format((float)$r['labor_discount'], 2, '.', ''), '0'), '.') ?: '0') ?></td>
+                <td><?= e(rtrim(rtrim(number_format((float)$r['parts_discount'], 2, '.', ''), '0'), '.') ?: '0') ?></td>
+                <td>
+                    <span class="tpl-count <?= $tc >= $formTypeCount ? 'tpl-count-ok' : ($tc > 0 ? 'tpl-count-partial' : 'tpl-count-empty') ?>">
+                        <?= $tc ?>/<?= $formTypeCount ?>
+                    </span>
+                </td>
+                <td><?= !empty($r['is_active']) ? 'Evet' : 'Hayır' ?></td>
                 <td class="table-actions">
-                    <a class="btn btn-sm btn-ghost" href="?edit=<?= (int)$r['id'] ?>">Düzenle</a>
-                    <form method="post" class="inline-form" onsubmit="return confirm('Silinsin mi?')">
+                    <a class="btn btn-sm btn-primary" href="?edit=<?= $tid ?>">Düzenle / PDF</a>
+                    <form method="post" class="inline-form" onsubmit="return confirm('Şirket ve şablonları silinsin mi?')">
                         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
                         <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
+                        <input type="hidden" name="id" value="<?= $tid ?>">
                         <button class="btn btn-sm btn-ghost" type="submit">Sil</button>
                     </form>
                 </td>
             </tr>
             <?php endforeach; ?>
+            <?php if (!$rows): ?>
+            <tr><td colspan="6" class="empty-state">Henüz şirket yok. Soldan ekleyin.</td></tr>
+            <?php endif; ?>
             </tbody>
         </table>
     </div>
 </div>
 
-<?php if ($edit): ?>
-<div class="admin-form-card" style="margin-top:1.5rem;max-width:900px">
-    <h2><?= e($edit['name']) ?> — Form Şablonları</h2>
-    <p class="text-muted">Müşteri portalında yalnızca bu şirketin Taahhüt / Teslim / İbra şablonları görünür.</p>
+<?php if ($isEdit): ?>
+<div class="admin-form-card ins-templates-panel">
+    <h2><?= e($edit['name']) ?> — Form PDF Şablonları</h2>
+    <p class="form-hint">
+        Müşteri eksik evrak durumunda bu şirketin şablonlarını indirip imzalayarak geri yükler.
+        Her form tipi için bir PDF yükleyin (görsel de kabul edilir).
+    </p>
+
     <?php foreach ($formTypes as $type => $label):
         $tpl = $editByType[$type] ?? null;
     ?>
-    <div class="ins-admin-template-row">
-        <h3><?= e($label) ?></h3>
+    <div class="ins-admin-template-row <?= $tpl ? 'has-tpl' : 'no-tpl' ?>">
+        <div class="ins-admin-template-head">
+            <h3><?= e($label) ?></h3>
+            <?php if ($tpl): ?>
+            <span class="tpl-badge tpl-badge-ok">Yüklü</span>
+            <?php else: ?>
+            <span class="tpl-badge tpl-badge-miss">Eksik</span>
+            <?php endif; ?>
+        </div>
+
         <?php if ($tpl): ?>
-        <p>Mevcut: <strong><?= e($tpl['original_name']) ?></strong> · <?= e($tpl['title']) ?></p>
-        <form method="post" class="inline-form" onsubmit="return confirm('Şablon silinsin mi?')">
-            <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-            <input type="hidden" name="action" value="delete_template">
-            <input type="hidden" name="company_id" value="<?= (int)$edit['id'] ?>">
-            <input type="hidden" name="template_id" value="<?= (int)$tpl['id'] ?>">
-            <button class="btn btn-sm btn-ghost" type="submit">Şablonu sil</button>
-        </form>
+        <p class="ins-tpl-meta">
+            <strong><?= e($tpl['title']) ?></strong>
+            · <?= e($tpl['original_name']) ?>
+            · <?= e($tpl['mime_type']) ?>
+        </p>
+        <div class="ins-template-actions">
+            <a class="btn btn-sm btn-secondary"
+               href="/admin/template_download.php?id=<?= (int)$tpl['id'] ?>">Önizle / İndir</a>
+            <form method="post" class="inline-form" onsubmit="return confirm('Bu şablon silinsin mi?')">
+                <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+                <input type="hidden" name="action" value="delete_template">
+                <input type="hidden" name="company_id" value="<?= (int)$edit['id'] ?>">
+                <input type="hidden" name="template_id" value="<?= (int)$tpl['id'] ?>">
+                <button class="btn btn-sm btn-ghost" type="submit">Şablonu sil</button>
+            </form>
+        </div>
         <?php else: ?>
-        <p class="text-muted">Henüz şablon yok.</p>
+        <p class="text-muted">Henüz şablon yok — PDF yükleyin.</p>
         <?php endif; ?>
+
         <form method="post" enctype="multipart/form-data" class="ins-admin-upload-form">
             <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
             <input type="hidden" name="action" value="save_template">
@@ -241,11 +348,14 @@ require __DIR__ . '/../../includes/header.php';
                     <input class="form-input" name="title" value="<?= e($tpl['title'] ?? $label) ?>">
                 </div>
                 <div class="form-group">
-                    <label>Dosya (PDF / JPEG / PNG)</label>
-                    <input class="form-input" type="file" name="template_file" accept=".pdf,image/jpeg,image/png,image/webp,application/pdf" required>
+                    <label>PDF dosyası</label>
+                    <input class="form-input" type="file" name="template_file"
+                           accept=".pdf,application/pdf,image/jpeg,image/png,image/webp" required>
                 </div>
             </div>
-            <button class="btn btn-secondary btn-sm" type="submit"><?= $tpl ? 'Şablonu değiştir' : 'Şablon yükle' ?></button>
+            <button class="btn btn-secondary btn-sm" type="submit">
+                <?= $tpl ? 'PDF’yi değiştir' : 'PDF yükle' ?>
+            </button>
         </form>
     </div>
     <?php endforeach; ?>

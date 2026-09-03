@@ -87,7 +87,7 @@ $pageTitle = $file['file_number'];
         <?php endif; ?>
 
         <section class="ins-template-section">
-            <h3>Kasko formları (Taahhüt / Teslim / İbra)</h3>
+            <h3>Kasko formları (Taahhüt / Teslim / İbra / Temlik)</h3>
             <?php if (!$insCompany): ?>
             <p class="empty-state">Bu dosyada anlaşmalı kasko şirketi tanımlı değil.</p>
             <?php elseif (!$templates): ?>

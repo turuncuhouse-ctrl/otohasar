@@ -197,7 +197,7 @@ require __DIR__ . '/../includes/header.php';
                     $icon = match($key) {
                         'ruhsat' => '📄', 'ehliyet' => '🪪', 'tutanak' => '📋',
                         'hasar_foto' => '📸', 'ekspertiz' => '🔍', 'taahhut' => '📝', 'teslim' => '📦', 'ibra' => '✍️',
-                        'onarim' => '🔧', 'diger' => '📁',
+                        'temlik' => '📑', 'onarim' => '🔧', 'diger' => '📁',
                         default => '📎'
                     };
                 ?>

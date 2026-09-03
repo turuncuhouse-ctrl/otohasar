@@ -53,6 +53,24 @@ function ensure_schema_upgrades(PDO $pdo): void
     if (!schema_column_exists($pdo, 'app_categories', 'description')) {
         run_migration_script($scripts . 'migrate_v9.php');
     }
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM information_schema.TABLES
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+    );
+    $stmt->execute(['insurance_doc_templates']);
+    if ((int) $stmt->fetchColumn() === 0) {
+        run_migration_script($scripts . 'migrate_v6.php');
+    }
+    try {
+        $hasTemlik = (int) $pdo->query(
+            "SELECT COUNT(*) FROM app_categories WHERE code = 'temlik'"
+        )->fetchColumn();
+        if ($hasTemlik === 0) {
+            run_migration_script($scripts . 'migrate_v10.php');
+        }
+    } catch (Throwable $e) {
+        // categories table may not exist yet
+    }
 }
 
 function db(): PDO
