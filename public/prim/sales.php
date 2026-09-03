@@ -37,9 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 }
 
 $params = [];
-$sql = 'SELECT ps.*, u.name AS seller_name
+$sql = 'SELECT ps.*, u.name AS seller_name, pp.name AS product_name
         FROM prim_sales ps
-        JOIN users u ON u.id = ps.sold_by';
+        JOIN users u ON u.id = ps.sold_by
+        LEFT JOIN prim_products pp ON pp.id = ps.product_id';
 if (!$canTeam) {
     $sql .= ' WHERE ps.sold_by = ?';
     $params[] = (int) $currentUser['id'];
@@ -71,6 +72,7 @@ require __DIR__ . '/../../includes/header.php';
         <thead>
             <tr>
                 <th>Tarih</th>
+                <th>Ürün</th>
                 <th>Başlık</th>
                 <th>Plaka</th>
                 <th>Bağlam</th>
@@ -89,13 +91,18 @@ require __DIR__ . '/../../includes/header.php';
             ?>
             <tr>
                 <td><?= e(format_datetime_short($s['sale_at'])) ?></td>
+                <td><?= e($s['product_name'] ?? '—') ?></td>
                 <td><?= e($s['title']) ?></td>
                 <td><?= e($s['plate'] ?: '—') ?></td>
                 <td><?= e($ctxLabels[$s['context']] ?? $s['context']) ?></td>
                 <td><?= (int)$s['quantity'] ?></td>
                 <?php if ($canAmounts): ?>
                 <td><?= e(format_money_tr((float)$s['amount'])) ?></td>
-                <td><?= e(format_money_tr(prim_calc_amount((float)$s['amount'], (int)$s['quantity']))) ?></td>
+                <td><?= e(format_money_tr(
+                    (float)($s['earned_prim'] ?? 0) > 0
+                        ? (float)$s['earned_prim']
+                        : prim_calc_amount((float)$s['amount'], (int)$s['quantity'], isset($s['product_id']) ? (int)$s['product_id'] : null)
+                )) ?></td>
                 <?php endif; ?>
                 <?php if ($canTeam): ?><td><?= e($s['seller_name']) ?></td><?php endif; ?>
                 <td class="table-actions">

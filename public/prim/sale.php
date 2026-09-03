@@ -27,23 +27,13 @@ if ($id > 0) {
     }
 }
 
-$canCreate = user_can($currentUser, 'prim_sale_create');
 $canEditOwn = user_can($currentUser, 'prim_sale_edit_own');
 $editing = $sale !== null;
 if ($editing) {
     $isOwn = (int) $sale['sold_by'] === (int) $currentUser['id'];
-    if (!($isOwn && $canEditOwn) && !user_can($currentUser, 'prim_view_team')) {
-        // view team can see but only edit own unless manage - keep edit own only
-    }
     if (!($isOwn && $canEditOwn)) {
-        // allow view-only redirect for non-editable
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            // still show form disabled? simpler: require edit own
-            if (!($isOwn && $canEditOwn)) {
-                http_response_code(403);
-                exit('Bu kaydı düzenleyemezsiniz');
-            }
-        }
+        http_response_code(403);
+        exit('Bu kaydı düzenleyemezsiniz');
     }
 } else {
     require_perm($currentUser, 'prim_sale_create');
@@ -51,15 +41,17 @@ if ($editing) {
 
 $pageTitle = $editing ? 'Satış Düzenle' : 'Yeni Satış';
 $activeNav = 'prim';
-$message = '';
 $error = '';
 $preFileId = (int) ($_GET['file_id'] ?? 0);
 $prePlate = normalize_plate($_GET['plate'] ?? '');
+$products = prim_products(true);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf($_POST['csrf'] ?? null)) {
         $error = 'CSRF hatası';
     } else {
+        $productId = (int) ($_POST['product_id'] ?? 0) ?: null;
+        $product = $productId ? prim_product_by_id($productId) : null;
         $title = trim($_POST['title'] ?? '');
         $plate = normalize_plate($_POST['plate'] ?? '');
         $amount = (float) str_replace(',', '.', (string) ($_POST['amount'] ?? '0'));
@@ -71,6 +63,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $saleAt = trim($_POST['sale_at'] ?? '');
         $note = trim($_POST['note'] ?? '');
         $fileId = (int) ($_POST['damage_file_id'] ?? 0) ?: null;
+        if ($title === '' && $product) {
+            $title = (string) $product['name'];
+        }
         if ($title === '') {
             $title = $plate !== '' ? $plate . ' ek satış' : 'Ek satış';
         }
@@ -78,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $saleAt = date('Y-m-d\TH:i');
         }
         $saleAtSql = date('Y-m-d H:i:s', strtotime(str_replace('T', ' ', $saleAt)) ?: time());
+        $earned = prim_calc_sale_row($amount, $qty, $product);
 
         $soldBy = (int) $currentUser['id'];
         if (prim_setting('prim_beneficiary', 'seller') === 'advisor' && $fileId) {
@@ -92,30 +88,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($amount < 0) {
             $error = 'Tutar geçersiz';
         } elseif ($editing) {
-            if (!((int) $sale['sold_by'] === (int) $currentUser['id'] && $canEditOwn)) {
-                $error = 'Yetkisiz';
-            } else {
-                $pdo->prepare(
-                    'UPDATE prim_sales SET damage_file_id=?, plate=?, title=?, amount=?, quantity=?, context=?, sale_at=?, note=? WHERE id=?'
-                )->execute([$fileId, $plate ?: null, $title, $amount, $qty, $context, $saleAtSql, $note ?: null, $id]);
-                header('Location: /prim/sales.php?ok=1');
-                exit;
-            }
+            $pdo->prepare(
+                'UPDATE prim_sales SET damage_file_id=?, product_id=?, plate=?, title=?, amount=?, earned_prim=?, quantity=?, context=?, sale_at=?, note=? WHERE id=?'
+            )->execute([$fileId, $productId, $plate ?: null, $title, $amount, $earned, $qty, $context, $saleAtSql, $note ?: null, $id]);
+            header('Location: /prim/sales.php?ok=1');
+            exit;
         } else {
             $pdo->prepare(
-                'INSERT INTO prim_sales (damage_file_id, plate, title, amount, quantity, context, sold_by, sale_at, note)
-                 VALUES (?,?,?,?,?,?,?,?,?)'
-            )->execute([$fileId, $plate ?: null, $title, $amount, $qty, $context, $soldBy, $saleAtSql, $note ?: null]);
+                'INSERT INTO prim_sales (damage_file_id, product_id, plate, title, amount, earned_prim, quantity, context, sold_by, sale_at, note)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+            )->execute([$fileId, $productId, $plate ?: null, $title, $amount, $earned, $qty, $context, $soldBy, $saleAtSql, $note ?: null]);
             header('Location: /prim/sales.php?ok=1');
             exit;
         }
     }
 }
 
-$saleAtVal = $sale['sale_at'] ?? date('Y-m-d\TH:i');
+$saleAtVal = date('Y-m-d\TH:i');
 if ($sale && isset($sale['sale_at'])) {
     $saleAtVal = date('Y-m-d\TH:i', strtotime((string) $sale['sale_at']) ?: time());
 }
+$selectedProduct = (int) ($sale['product_id'] ?? 0);
 
 require __DIR__ . '/../../includes/header.php';
 ?>
@@ -130,8 +123,19 @@ require __DIR__ . '/../../includes/header.php';
 <form method="post" class="admin-form-card" style="max-width:520px">
     <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
     <div class="form-group">
+        <label>Ürün / hizmet</label>
+        <select class="form-input" name="product_id">
+            <option value="">— Genel / serbest —</option>
+            <?php foreach ($products as $p): ?>
+            <option value="<?= (int)$p['id'] ?>" <?= $selectedProduct === (int)$p['id'] ? 'selected' : '' ?>>
+                <?= e($p['name']) ?><?= $p['category'] ? ' · ' . e($p['category']) : '' ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="form-group">
         <label>Başlık</label>
-        <input class="form-input" name="title" value="<?= e($sale['title'] ?? '') ?>" placeholder="Örn. Cam filmi, bakım paketi">
+        <input class="form-input" name="title" value="<?= e($sale['title'] ?? '') ?>" placeholder="Boşsa ürün adı kullanılır">
     </div>
     <div class="form-group">
         <label>Plaka</label>
@@ -168,7 +172,7 @@ require __DIR__ . '/../../includes/header.php';
         <textarea class="form-input" name="note" rows="3"><?= e($sale['note'] ?? '') ?></textarea>
     </div>
     <?php if (user_can($currentUser, 'prim_view_amounts') && isset($sale['amount'])): ?>
-    <p class="form-hint">Tahmini prim: <?= e(format_money_tr(prim_calc_amount((float)$sale['amount'], (int)$sale['quantity']))) ?></p>
+    <p class="form-hint">Kayıtlı prim: <?= e(format_money_tr((float)($sale['earned_prim'] ?? prim_calc_amount((float)$sale['amount'], (int)$sale['quantity'], isset($sale['product_id']) ? (int)$sale['product_id'] : null)))) ?></p>
     <?php endif; ?>
     <button class="btn btn-primary btn-block" type="submit">Kaydet</button>
 </form>

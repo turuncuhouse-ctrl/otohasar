@@ -468,7 +468,37 @@ function prim_is_enabled(): bool
     return prim_setting('prim_enabled', '1') === '1';
 }
 
-function prim_calc_amount(float $saleAmount, int $quantity = 1): float
+function prim_products(bool $activeOnly = true): array
+{
+    try {
+        $sql = 'SELECT * FROM prim_products';
+        if ($activeOnly) {
+            $sql .= ' WHERE is_active = 1';
+        }
+        $sql .= ' ORDER BY sort_order, name';
+        return db()->query($sql)->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function prim_product_by_id(?int $id): ?array
+{
+    if (!$id) {
+        return null;
+    }
+    try {
+        $stmt = db()->prepare('SELECT * FROM prim_products WHERE id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+/** Genel (global) satış primi — ürün yoksa veya inherit */
+function prim_calc_global(float $saleAmount, int $quantity = 1): float
 {
     $mode = prim_setting('prim_mode', 'pct');
     if ($mode === 'fixed') {
@@ -476,6 +506,156 @@ function prim_calc_amount(float $saleAmount, int $quantity = 1): float
     }
     $pct = (float) prim_setting('prim_rate_pct', '5');
     return round($saleAmount * $pct / 100, 2);
+}
+
+/**
+ * Tek satış için prim (ürün + SPIFF + global öncelik).
+ * @param array|null $product prim_products satırı
+ */
+function prim_calc_sale_row(float $saleAmount, int $quantity = 1, ?array $product = null): float
+{
+    $qty = max(1, $quantity);
+    $priority = prim_setting('prim_calc_priority', 'product_then_global');
+    $includeSpiff = prim_setting('prim_include_spiff', '1') === '1';
+
+    $productPart = 0.0;
+    $globalPart = 0.0;
+    $spiff = 0.0;
+
+    if ($product) {
+        $mode = (string) ($product['commission_mode'] ?? 'inherit');
+        if ($mode === 'pct') {
+            $productPart = round($saleAmount * ((float) ($product['rate_pct'] ?? 0)) / 100, 2);
+        } elseif ($mode === 'fixed') {
+            $productPart = round(((float) ($product['fixed_amount'] ?? 0)) * $qty, 2);
+        } elseif ($mode === 'inherit') {
+            $productPart = prim_calc_global($saleAmount, $qty);
+        }
+        if ($includeSpiff) {
+            $spiff = round(((float) ($product['spiff_amount'] ?? 0)) * $qty, 2);
+        }
+    }
+
+    if ($priority === 'global_only' || (!$product && $priority !== 'product_only')) {
+        $globalPart = prim_calc_global($saleAmount, $qty);
+    } elseif ($priority === 'product_then_global' && $product) {
+        $mode = (string) ($product['commission_mode'] ?? 'inherit');
+        if ($mode === 'inherit') {
+            // already in productPart
+            $globalPart = 0.0;
+        } else {
+            // ürün primi + opsiyonel global yok — sadece ürün
+            $globalPart = 0.0;
+        }
+    } elseif ($priority === 'product_only') {
+        if (!$product) {
+            $globalPart = 0.0;
+        }
+    }
+
+    if ($priority === 'global_only') {
+        return round($globalPart + $spiff, 2);
+    }
+    if ($priority === 'product_only') {
+        return round($productPart + $spiff, 2);
+    }
+    // product_then_global
+    if ($product) {
+        return round($productPart + $spiff, 2);
+    }
+    return round(prim_calc_global($saleAmount, $qty), 2);
+}
+
+/** Geriye uyumluluk */
+function prim_calc_amount(float $saleAmount, int $quantity = 1, ?int $productId = null): float
+{
+    $product = $productId ? prim_product_by_id($productId) : null;
+    return prim_calc_sale_row($saleAmount, $quantity, $product);
+}
+
+function prim_targets(bool $activeOnly = true): array
+{
+    try {
+        $sql = 'SELECT t.*, u.name AS user_name FROM prim_targets t
+                LEFT JOIN users u ON u.id = t.user_id';
+        if ($activeOnly) {
+            $sql .= ' WHERE t.is_active = 1';
+        }
+        $sql .= ' ORDER BY t.period_end DESC, t.id DESC';
+        return db()->query($sql)->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function prim_target_tiers(int $targetId): array
+{
+    try {
+        $stmt = db()->prepare('SELECT * FROM prim_target_tiers WHERE target_id = ? ORDER BY min_pct, id');
+        $stmt->execute([$targetId]);
+        return $stmt->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function prim_period_progress(array $target): array
+{
+    $pdo = db();
+    $start = $target['period_start'] . ' 00:00:00';
+    $end = $target['period_end'];
+    $metric = $target['metric'] ?? 'amount';
+    $scope = $target['scope'] ?? 'user';
+
+    $select = match ($metric) {
+        'quantity' => 'COALESCE(SUM(quantity),0)',
+        'sales_count' => 'COUNT(*)',
+        default => 'COALESCE(SUM(amount),0)',
+    };
+
+    if ($scope === 'user' && !empty($target['user_id'])) {
+        $stmt = $pdo->prepare(
+            "SELECT {$select} FROM prim_sales
+             WHERE sold_by = ? AND sale_at >= ? AND sale_at < DATE_ADD(?, INTERVAL 1 DAY)"
+        );
+        $stmt->execute([(int) $target['user_id'], $start, $end]);
+    } else {
+        $stmt = $pdo->prepare(
+            "SELECT {$select} FROM prim_sales
+             WHERE sale_at >= ? AND sale_at < DATE_ADD(?, INTERVAL 1 DAY)"
+        );
+        $stmt->execute([$start, $end]);
+    }
+    $actual = (float) $stmt->fetchColumn();
+    $goal = (float) ($target['target_value'] ?? 0);
+    $pct = $goal > 0 ? round($actual / $goal * 100, 2) : 0.0;
+
+    $tiers = prim_target_tiers((int) $target['id']);
+    $tierBonus = 0.0;
+    $tierLabel = null;
+    foreach ($tiers as $tier) {
+        if ($pct + 0.0001 >= (float) $tier['min_pct']) {
+            $tierBonus = (float) $tier['bonus_amount'];
+            $tierLabel = $tier['label'] ?: ('%' . rtrim(rtrim((string) $tier['min_pct'], '0'), '.'));
+        }
+    }
+
+    $flatBonus = 0.0;
+    if ($tierBonus <= 0 && ($target['bonus_mode'] ?? 'none') !== 'none' && $pct >= 100) {
+        if (($target['bonus_mode'] ?? '') === 'fixed') {
+            $flatBonus = (float) ($target['bonus_value'] ?? 0);
+        } elseif (($target['bonus_mode'] ?? '') === 'pct_of_sales') {
+            $flatBonus = round($actual * ((float) ($target['bonus_value'] ?? 0)) / 100, 2);
+        }
+    }
+
+    return [
+        'actual' => $actual,
+        'goal' => $goal,
+        'pct' => $pct,
+        'bonus' => $tierBonus > 0 ? $tierBonus : $flatBonus,
+        'tier_label' => $tierLabel,
+    ];
 }
 
 function format_money_tr(float $amount): string
