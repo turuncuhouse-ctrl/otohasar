@@ -128,6 +128,9 @@ function ensure_schema_upgrades(PDO $pdo): void
     if (!schema_table_exists($pdo, 'prim_products') || !migration_applied($pdo, 'v18_prim_flexible')) {
         run_migration_script($scripts . 'migrate_v18.php');
     }
+    if (!migration_applied($pdo, 'v19_tour_pro')) {
+        run_migration_script($scripts . 'migrate_v19.php');
+    }
 }
 
 function db(): PDO

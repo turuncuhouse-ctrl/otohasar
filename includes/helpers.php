@@ -258,7 +258,7 @@ function permission_catalog(): array
             'access_prim'    => 'Prim sistemi',
             'access_admin'   => 'Sistem ayarları',
             'access_reports' => 'Raporlar',
-            'access_tour'    => 'Tanıtım',
+            'access_tour'    => 'Tanıtım sunumu (yönetim / oryantasyon)',
         ],
         'Hasar' => [
             'hasar_create_file'    => 'Dosya oluştur',
@@ -355,12 +355,12 @@ function legacy_role_permissions(string $role): array
             'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_team', 'prim_view_amounts', 'prim_manage_settings',
         ],
         'advisor' => [
-            'access_hasar', 'access_prim', 'access_tour',
+            'access_hasar', 'access_prim',
             'hasar_create_file', 'hasar_edit_own', 'hasar_status_all', 'hasar_search',
             'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_amounts',
         ],
         'workshop' => [
-            'access_hasar', 'access_prim', 'access_tour',
+            'access_hasar', 'access_prim',
             'hasar_status_limited', 'hasar_search',
             'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_amounts',
         ],

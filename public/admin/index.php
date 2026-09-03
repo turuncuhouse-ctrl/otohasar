@@ -58,7 +58,7 @@ require __DIR__ . '/../../includes/header.php';
     </a>
     <a class="admin-card" href="/admin/tour.php">
         <h2>Tanıtım Sunumu</h2>
-        <p>Sistemin işleyişini anlatan slaytları düzenleyin</p>
+        <p>Tüm sistem işleyişini anlatan kurumsal sunum (Admin / Servis Müdürü + izin verilen gruplar)</p>
         <span class="admin-stat">İçerik</span>
     </a>
     <a class="admin-card" href="/admin/statuses.php">

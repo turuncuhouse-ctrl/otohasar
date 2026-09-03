@@ -22,18 +22,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'save') {
             $id = (int) ($_POST['id'] ?? 0);
             $title = trim($_POST['title'] ?? '');
+            $eyebrow = trim($_POST['eyebrow'] ?? '') ?: null;
             $body = trim($_POST['body'] ?? '');
+            $bullets = trim($_POST['bullets'] ?? '') ?: null;
             $sort = (int) ($_POST['sort_order'] ?? 0);
             $active = isset($_POST['is_active']) ? 1 : 0;
             if ($title === '' || $body === '') {
                 $error = 'Başlık ve metin zorunlu';
             } elseif ($id > 0) {
-                $pdo->prepare('UPDATE tour_slides SET title=?, body=?, sort_order=?, is_active=? WHERE id=?')
-                    ->execute([$title, $body, $sort, $active, $id]);
+                $pdo->prepare('UPDATE tour_slides SET title=?, eyebrow=?, body=?, bullets=?, sort_order=?, is_active=? WHERE id=?')
+                    ->execute([$title, $eyebrow, $body, $bullets, $sort, $active, $id]);
                 $message = 'Slayt güncellendi';
             } else {
-                $pdo->prepare('INSERT INTO tour_slides (title, body, sort_order, is_active) VALUES (?,?,?,?)')
-                    ->execute([$title, $body, $sort, $active]);
+                $pdo->prepare('INSERT INTO tour_slides (title, eyebrow, body, bullets, sort_order, is_active) VALUES (?,?,?,?,?,?)')
+                    ->execute([$title, $eyebrow, $body, $bullets, $sort, $active]);
                 $message = 'Slayt eklendi';
             }
         } elseif ($action === 'delete') {
@@ -58,7 +60,10 @@ require __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="page-header">
-    <h1>Tanıtım Sunumu</h1>
+    <div>
+        <h1>Tanıtım Sunumu</h1>
+        <p class="dash-sub">Varsayılan görünürlük: Sistem Admin + Servis Müdürü. Diğer gruplar için Kullanıcı Grupları → “Tanıtım sunumu” iznini açın.</p>
+    </div>
     <div class="header-actions">
         <a href="/tour.php" class="btn btn-ghost btn-sm" target="_blank">Önizle</a>
         <a href="/admin/" class="btn btn-ghost btn-sm">← Sistem Ayarları</a>
@@ -74,8 +79,10 @@ require __DIR__ . '/../../includes/header.php';
         <input type="hidden" name="action" value="save">
         <?php if ($edit): ?><input type="hidden" name="id" value="<?= (int)$edit['id'] ?>"><?php endif; ?>
         <h2><?= $edit ? 'Slayt Düzenle' : 'Yeni Slayt' ?></h2>
+        <div class="form-group"><label>Üst etiket (eyebrow)</label><input class="form-input" name="eyebrow" value="<?= e($edit['eyebrow'] ?? '') ?>" placeholder="Örn. Hasar süreci"></div>
         <div class="form-group"><label>Başlık</label><input class="form-input" name="title" required value="<?= e($edit['title'] ?? '') ?>"></div>
-        <div class="form-group"><label>Metin</label><textarea class="form-input" name="body" rows="8" required><?= e($edit['body'] ?? '') ?></textarea></div>
+        <div class="form-group"><label>Ana metin</label><textarea class="form-input" name="body" rows="7" required><?= e($edit['body'] ?? '') ?></textarea></div>
+        <div class="form-group"><label>Madde işaretleri (her satır bir madde)</label><textarea class="form-input" name="bullets" rows="5"><?= e($edit['bullets'] ?? '') ?></textarea></div>
         <div class="form-group"><label>Sıra</label><input class="form-input" type="number" name="sort_order" value="<?= (int)($edit['sort_order'] ?? 100) ?>"></div>
         <label class="check-row"><input type="checkbox" name="is_active" <?= !$edit || !empty($edit['is_active']) ? 'checked' : '' ?>> Aktif</label>
         <button class="btn btn-primary btn-block" type="submit"><?= $edit ? 'Kaydet' : 'Ekle' ?></button>
@@ -84,12 +91,15 @@ require __DIR__ . '/../../includes/header.php';
 
     <div class="admin-table-wrap">
         <table class="report-table">
-            <thead><tr><th>Sıra</th><th>Başlık</th><th>Durum</th><th></th></tr></thead>
+            <thead><tr><th>Sıra</th><th>Bölüm</th><th>Durum</th><th></th></tr></thead>
             <tbody>
             <?php foreach ($slides as $s): ?>
             <tr>
                 <td><?= (int)$s['sort_order'] ?></td>
-                <td><?= e($s['title']) ?></td>
+                <td>
+                    <?php if (!empty($s['eyebrow'])): ?><span class="muted"><?= e($s['eyebrow']) ?></span><br><?php endif; ?>
+                    <?= e($s['title']) ?>
+                </td>
                 <td><?= $s['is_active'] ? 'Aktif' : 'Pasif' ?></td>
                 <td class="table-actions">
                     <a class="btn btn-sm btn-ghost" href="/admin/tour.php?edit=<?= (int)$s['id'] ?>">Düzenle</a>

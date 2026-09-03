@@ -91,22 +91,22 @@ $permSets = [
         'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_team', 'prim_view_amounts', 'prim_manage_settings',
     ],
     'servis_mudur_yrd' => [
-        'access_hasar', 'access_prim', 'access_reports', 'access_tour',
+        'access_hasar', 'access_prim', 'access_reports',
         'hasar_create_file', 'hasar_edit_all', 'hasar_edit_own', 'hasar_status_all', 'hasar_search',
         'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_team', 'prim_view_amounts',
     ],
     'hasar_danismani' => [
-        'access_hasar', 'access_prim', 'access_tour',
+        'access_hasar', 'access_prim',
         'hasar_create_file', 'hasar_edit_own', 'hasar_status_all', 'hasar_search',
         'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_amounts',
     ],
     'mekanik_danismani' => [
-        'access_hasar', 'access_prim', 'access_tour',
+        'access_hasar', 'access_prim',
         'hasar_status_limited', 'hasar_search',
         'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_amounts',
     ],
     'hasar_yoneticisi' => [
-        'access_hasar', 'access_prim', 'access_reports', 'access_tour',
+        'access_hasar', 'access_prim', 'access_reports',
         'hasar_create_file', 'hasar_edit_all', 'hasar_edit_own', 'hasar_status_all', 'hasar_search',
         'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_team', 'prim_view_amounts',
     ],
