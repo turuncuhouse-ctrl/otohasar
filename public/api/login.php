@@ -9,16 +9,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
-$username = trim($input['username'] ?? '');
+$login = trim((string) ($input['username'] ?? $input['phone'] ?? $input['login'] ?? ''));
 $password = $input['password'] ?? '';
 
-if ($username === '' || $password === '') {
-    json_error('Kullanıcı adı ve şifre gerekli');
+if ($login === '' || $password === '') {
+    json_error('Kullanıcı adı/telefon ve şifre gerekli');
 }
 
-$user = verify_login($username, $password);
+$user = verify_login($login, $password);
 if (!$user) {
-    json_error('Geçersiz kullanıcı adı veya şifre', 401);
+    json_error('Geçersiz kullanıcı adı/telefon veya şifre', 401);
 }
 
 login_user($user);

@@ -155,11 +155,29 @@ function create_auth_token(int $userId): string
     return $token;
 }
 
-function verify_login(string $username, string $password): ?array
+function verify_login(string $login, string $password): ?array
 {
-    $stmt = db()->prepare('SELECT * FROM users WHERE username = ? AND is_active = 1');
-    $stmt->execute([$username]);
-    $user = $stmt->fetch();
+    $login = trim($login);
+    $user = null;
+
+    if ($login !== '') {
+        $stmt = db()->prepare('SELECT * FROM users WHERE username = ? AND is_active = 1 LIMIT 1');
+        $stmt->execute([$login]);
+        $user = $stmt->fetch() ?: null;
+    }
+
+    if (!$user) {
+        $phone = normalize_login_phone($login);
+        if ($phone !== '') {
+            $candidates = db()->query('SELECT * FROM users WHERE is_active = 1 AND phone IS NOT NULL AND phone != \'\'')->fetchAll();
+            foreach ($candidates as $row) {
+                if (normalize_login_phone((string) $row['phone']) === $phone) {
+                    $user = $row;
+                    break;
+                }
+            }
+        }
+    }
 
     $dummyHash = '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
     $hash = $user['password'] ?? $dummyHash;

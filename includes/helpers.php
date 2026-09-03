@@ -740,6 +740,36 @@ function format_money_tr(float $amount): string
     return number_format($amount, 2, ',', '.') . ' TL';
 }
 
+/** Giriş / kayıt için telefonu sadece rakamlara indirger (TR: 05xx → 905xx). */
+function normalize_login_phone(string $phone): string
+{
+    $digits = preg_replace('/\D+/', '', $phone) ?? '';
+    if ($digits === '') {
+        return '';
+    }
+    if (str_starts_with($digits, '00')) {
+        $digits = substr($digits, 2);
+    }
+    if (strlen($digits) === 10 && str_starts_with($digits, '5')) {
+        $digits = '90' . $digits;
+    } elseif (strlen($digits) === 11 && str_starts_with($digits, '05')) {
+        $digits = '90' . substr($digits, 1);
+    }
+    return $digits;
+}
+
+function format_phone_display(?string $phone): string
+{
+    if ($phone === null || trim($phone) === '') {
+        return '';
+    }
+    $n = normalize_login_phone($phone);
+    if (strlen($n) === 12 && str_starts_with($n, '90')) {
+        return '+90 ' . substr($n, 2, 3) . ' ' . substr($n, 5, 3) . ' ' . substr($n, 8, 2) . ' ' . substr($n, 10, 2);
+    }
+    return $phone;
+}
+
 function tour_slides(bool $activeOnly = true): array
 {
     try {

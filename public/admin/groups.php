@@ -14,6 +14,10 @@ $pdo = db();
 $message = '';
 $error = '';
 $catalog = permission_catalog();
+$statusFilter = $_GET['status'] ?? 'all';
+if (!in_array($statusFilter, ['all', 'active', 'passive'], true)) {
+    $statusFilter = 'all';
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf($_POST['csrf'] ?? null)) {
@@ -40,50 +44,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $id = (int) $pdo->lastInsertId();
                         set_group_permissions($id, $perms);
                         $message = 'Grup oluşturuldu';
+                        header('Location: /admin/groups.php?edit=' . $id . '&ok=1');
+                        exit;
+                    }
+                    $g = user_group_by_id($id);
+                    if (!$g) {
+                        $error = 'Grup bulunamadı';
                     } else {
-                        $g = user_group_by_id($id);
-                        if (!$g) {
-                            $error = 'Grup bulunamadı';
-                        } else {
-                            $pdo->prepare(
-                                'UPDATE user_groups SET name=?, sort_order=?, is_active=? WHERE id=?'
-                            )->execute([$name, $sort, $isActive, $id]);
-                            set_group_permissions($id, $perms);
-                            $message = 'Grup güncellendi';
-                        }
+                        $pdo->prepare(
+                            'UPDATE user_groups SET name=?, sort_order=?, is_active=? WHERE id=?'
+                        )->execute([$name, $sort, $isActive, $id]);
+                        set_group_permissions($id, $perms);
+                        $message = 'Grup güncellendi';
                     }
                 } catch (Throwable $e) {
                     $error = 'Kayıt hatası (kod benzersiz olmalı)';
                 }
             }
-        } elseif ($action === 'delete') {
+        } elseif ($action === 'toggle_active') {
             $id = (int) ($_POST['id'] ?? 0);
             $g = user_group_by_id($id);
             if (!$g) {
                 $error = 'Grup bulunamadı';
-            } elseif ((int) $g['is_system'] === 1) {
-                $error = 'Sistem grupları silinemez';
-            } elseif (!is_system_founder($currentUser) && ($g['code'] ?? '') === 'admin') {
-                $error = 'Sistem Admin grubunu yalnızca kurucu silebilir';
+            } elseif ((int) $g['is_system'] === 1 && ($g['code'] ?? '') === 'admin' && !is_system_founder($currentUser)) {
+                $error = 'Sistem Admin grubunu yalnızca kurucu pasife alabilir';
             } else {
-                $stmt = $pdo->prepare('SELECT COUNT(*) FROM users WHERE group_id=?');
-                $stmt->execute([$id]);
-                $cnt = (int) $stmt->fetchColumn();
-                if ($cnt > 0) {
-                    $error = 'Bu gruba bağlı kullanıcı var; önce kullanıcıları taşıyın';
-                } else {
-                    $pdo->prepare('DELETE FROM user_groups WHERE id=?')->execute([$id]);
-                    $message = 'Grup silindi';
-                }
+                $pdo->prepare('UPDATE user_groups SET is_active = IF(is_active=1,0,1) WHERE id=?')->execute([$id]);
+                $message = 'Grup durumu güncellendi';
             }
         }
     }
 }
 
+if (isset($_GET['ok'])) {
+    $message = 'Grup kaydedildi';
+}
+
 $groups = user_groups(false);
+if ($statusFilter === 'active') {
+    $groups = array_values(array_filter($groups, static fn($g) => !empty($g['is_active'])));
+} elseif ($statusFilter === 'passive') {
+    $groups = array_values(array_filter($groups, static fn($g) => empty($g['is_active'])));
+}
+
 $editId = (int) ($_GET['edit'] ?? 0);
 $edit = null;
-foreach ($groups as $g) {
+foreach (user_groups(false) as $g) {
     if ((int) $g['id'] === $editId) {
         $edit = $g;
         break;
@@ -91,41 +97,61 @@ foreach ($groups as $g) {
 }
 $editPerms = $edit ? group_permission_map((int) $edit['id']) : [];
 
+$userCounts = [];
+try {
+    foreach ($pdo->query('SELECT group_id, COUNT(*) AS c FROM users WHERE group_id IS NOT NULL GROUP BY group_id') as $row) {
+        $userCounts[(int) $row['group_id']] = (int) $row['c'];
+    }
+} catch (Throwable $e) {
+}
+
 require __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="page-header">
-    <h1>Kullanıcı Grupları</h1>
+    <div>
+        <h1>Kullanıcı Grupları</h1>
+        <p class="dash-sub">Yeni grup açın, izinleri güncelleyin. Silme yok — aktif/pasif kullanın.</p>
+    </div>
     <a href="/admin/" class="btn btn-ghost btn-sm">← Sistem Ayarları</a>
 </div>
 
 <?php if ($message): ?><div class="alert alert-success"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
 
-<div class="admin-layout">
+<div class="admin-filter-bar">
+    <a class="filter-chip<?= $statusFilter === 'all' ? ' active' : '' ?>" href="/admin/groups.php">Tümü</a>
+    <a class="filter-chip<?= $statusFilter === 'active' ? ' active' : '' ?>" href="/admin/groups.php?status=active">Aktif</a>
+    <a class="filter-chip<?= $statusFilter === 'passive' ? ' active' : '' ?>" href="/admin/groups.php?status=passive">Pasif</a>
+    <?php if ($edit): ?>
+    <a class="btn btn-sm btn-primary" href="/admin/groups.php?status=<?= e($statusFilter) ?>">+ Yeni grup</a>
+    <?php endif; ?>
+</div>
+
+<div class="admin-layout admin-layout-wide">
     <form method="post" class="admin-form-card">
         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
         <input type="hidden" name="action" value="<?= $edit ? 'update' : 'create' ?>">
         <?php if ($edit): ?><input type="hidden" name="id" value="<?= (int)$edit['id'] ?>"><?php endif; ?>
-        <h2><?= $edit ? 'Grup Düzenle' : 'Yeni Grup' ?></h2>
-        <p class="form-hint">İzinleri işaretleyerek grubun hasar, prim ve rapor erişimini belirleyin. Sadece prim için hasar işaretlerini kapatın.</p>
+        <h2><?= $edit ? 'Grubu güncelle' : 'Yeni grup' ?></h2>
+        <p class="form-hint">Hasar / Prim / Rapor / Tanıtım izinlerini işaretleyin. Sadece prim için hasarı kapatın.</p>
         <div class="form-group">
             <label>Grup Adı</label>
-            <input class="form-input" name="name" required value="<?= e($edit['name'] ?? '') ?>">
+            <input class="form-input" name="name" required value="<?= e($edit['name'] ?? '') ?>" placeholder="Örn. Prim Satış Ekibi">
         </div>
         <div class="form-group">
             <label>Kod <?= $edit ? '(değiştirilemez)' : '' ?></label>
             <?php if ($edit): ?>
             <input class="form-input" value="<?= e($edit['code']) ?>" disabled>
             <?php else: ?>
-            <input class="form-input" name="code" required pattern="[a-z0-9_]+" placeholder="ornek_grup">
+            <input class="form-input" name="code" required pattern="[a-z0-9_]+" placeholder="prim_satis_ekibi">
             <?php endif; ?>
         </div>
         <div class="form-group">
             <label>Sıra</label>
             <input class="form-input" type="number" name="sort_order" value="<?= (int)($edit['sort_order'] ?? 100) ?>">
         </div>
-        <label class="check-row"><input type="checkbox" name="is_active" <?= !$edit || !empty($edit['is_active']) ? 'checked' : '' ?>> Aktif</label>
+        <label class="check-row"><input type="checkbox" name="is_active" <?= !$edit || !empty($edit['is_active']) ? 'checked' : '' ?>> Aktif grup</label>
 
         <div class="perm-matrix">
             <?php foreach ($catalog as $section => $items): ?>
@@ -136,42 +162,50 @@ require __DIR__ . '/../../includes/header.php';
                     <input type="checkbox" name="perms[<?= e($key) ?>]" value="1"
                         <?= !empty($editPerms[$key]) ? 'checked' : '' ?>>
                     <?= e($label) ?>
-                    <span class="perm-key"><?= e($key) ?></span>
                 </label>
                 <?php endforeach; ?>
             </div>
             <?php endforeach; ?>
         </div>
 
-        <button class="btn btn-primary btn-block" type="submit"><?= $edit ? 'Kaydet' : 'Oluştur' ?></button>
-        <?php if ($edit): ?><a class="btn btn-ghost btn-block" href="/admin/groups.php">İptal</a><?php endif; ?>
+        <button class="btn btn-primary btn-block" type="submit"><?= $edit ? 'Güncelle' : 'Oluştur' ?></button>
+        <?php if ($edit): ?><a class="btn btn-ghost btn-block" href="/admin/groups.php?status=<?= e($statusFilter) ?>">İptal</a><?php endif; ?>
     </form>
 
-    <div class="admin-table-wrap">
-        <table class="report-table">
-            <thead><tr><th>Grup</th><th>Kod</th><th>Sistem</th><th>Durum</th><th></th></tr></thead>
-            <tbody>
-            <?php foreach ($groups as $g): ?>
-            <tr>
-                <td><?= e($g['name']) ?></td>
-                <td><code><?= e($g['code']) ?></code></td>
-                <td><?= (int)$g['is_system'] === 1 ? 'Evet' : 'Hayır' ?></td>
-                <td><?= $g['is_active'] ? 'Aktif' : 'Pasif' ?></td>
-                <td class="table-actions">
-                    <a class="btn btn-sm btn-ghost" href="/admin/groups.php?edit=<?= (int)$g['id'] ?>">Düzenle</a>
-                    <?php if ((int)$g['is_system'] !== 1): ?>
-                    <form method="post" class="inline-form" onsubmit="return confirm('Silinsin mi?')">
-                        <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-                        <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="id" value="<?= (int)$g['id'] ?>">
-                        <button class="btn btn-sm btn-ghost" type="submit">Sil</button>
-                    </form>
-                    <?php endif; ?>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
+    <div class="admin-card-list">
+        <?php if (!$groups): ?>
+        <div class="admin-empty">Bu filtrede grup yok.</div>
+        <?php endif; ?>
+        <?php foreach ($groups as $g):
+            $permCount = count(array_filter(group_permission_map((int)$g['id'])));
+            $uc = $userCounts[(int)$g['id']] ?? 0;
+        ?>
+        <article class="mgmt-card<?= empty($g['is_active']) ? ' is-passive' : '' ?>">
+            <div class="mgmt-card-main">
+                <div class="mgmt-card-title">
+                    <strong><?= e($g['name']) ?></strong>
+                    <span class="status-pill small <?= !empty($g['is_active']) ? 'status-green' : 'status-slate' ?>"><?= !empty($g['is_active']) ? 'Aktif' : 'Pasif' ?></span>
+                    <?php if ((int)$g['is_system'] === 1): ?><span class="status-pill small status-blue">Sistem</span><?php endif; ?>
+                </div>
+                <div class="mgmt-card-meta">
+                    <span><code><?= e($g['code']) ?></code></span>
+                    <span><?= $uc ?> kullanıcı</span>
+                    <span><?= $permCount ?> izin</span>
+                </div>
+            </div>
+            <div class="mgmt-card-actions">
+                <a class="btn btn-sm btn-ghost" href="/admin/groups.php?status=<?= e($statusFilter) ?>&edit=<?= (int)$g['id'] ?>">Düzenle</a>
+                <form method="post" class="inline-form">
+                    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+                    <input type="hidden" name="action" value="toggle_active">
+                    <input type="hidden" name="id" value="<?= (int)$g['id'] ?>">
+                    <button class="btn btn-sm <?= !empty($g['is_active']) ? 'btn-ghost' : 'btn-primary' ?>" type="submit">
+                        <?= !empty($g['is_active']) ? 'Pasife al' : 'Aktifleştir' ?>
+                    </button>
+                </form>
+            </div>
+        </article>
+        <?php endforeach; ?>
     </div>
 </div>
 

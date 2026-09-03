@@ -17,6 +17,14 @@ $tab = $_GET['tab'] ?? 'genel';
 if (!in_array($tab, ['genel', 'urunler', 'hedefler'], true)) {
     $tab = 'genel';
 }
+$productStatus = $_GET['pstatus'] ?? 'all';
+if (!in_array($productStatus, ['all', 'active', 'passive'], true)) {
+    $productStatus = 'all';
+}
+$targetStatus = $_GET['tstatus'] ?? 'all';
+if (!in_array($targetStatus, ['all', 'active', 'passive'], true)) {
+    $targetStatus = 'all';
+}
 
 $users = $pdo->query('SELECT id, name FROM users WHERE is_active = 1 ORDER BY name')->fetchAll();
 
@@ -81,10 +89,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = 'Ürün eklendi';
             }
             $tab = 'urunler';
-        } elseif ($action === 'delete_product') {
+        } elseif ($action === 'toggle_product') {
             $id = (int) ($_POST['id'] ?? 0);
-            $pdo->prepare('DELETE FROM prim_products WHERE id=?')->execute([$id]);
-            $message = 'Ürün silindi';
+            $pdo->prepare('UPDATE prim_products SET is_active = IF(is_active=1,0,1) WHERE id=?')->execute([$id]);
+            $message = 'Ürün durumu güncellendi';
             $tab = 'urunler';
         } elseif ($action === 'save_target') {
             $id = (int) ($_POST['id'] ?? 0);
@@ -155,10 +163,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_prim_target_products($targetId, $productIds);
             }
             $tab = 'hedefler';
-        } elseif ($action === 'delete_target') {
+        } elseif ($action === 'toggle_target') {
             $id = (int) ($_POST['id'] ?? 0);
-            $pdo->prepare('DELETE FROM prim_targets WHERE id=?')->execute([$id]);
-            $message = 'Hedef silindi';
+            $pdo->prepare('UPDATE prim_targets SET is_active = IF(is_active=1,0,1) WHERE id=?')->execute([$id]);
+            $message = 'Hedef durumu güncellendi';
             $tab = 'hedefler';
         }
     }
@@ -174,21 +182,33 @@ $priority = prim_setting('prim_calc_priority', 'product_then_global');
 $includeSpiff = prim_setting('prim_include_spiff', '1') === '1';
 $stackTarget = prim_setting('prim_stack_target_bonus', '1') === '1';
 
-$products = prim_products(false);
+$allProducts = prim_products(false);
+$products = $allProducts;
+if ($productStatus === 'active') {
+    $products = array_values(array_filter($products, static fn($p) => !empty($p['is_active'])));
+} elseif ($productStatus === 'passive') {
+    $products = array_values(array_filter($products, static fn($p) => empty($p['is_active'])));
+}
 $editProductId = (int) ($_GET['edit_product'] ?? 0);
 $editProduct = null;
-foreach ($products as $p) {
+foreach ($allProducts as $p) {
     if ((int) $p['id'] === $editProductId) {
         $editProduct = $p;
         break;
     }
 }
 
-$targets = prim_targets(false);
+$allTargets = prim_targets(false);
+$targets = $allTargets;
+if ($targetStatus === 'active') {
+    $targets = array_values(array_filter($targets, static fn($t) => !empty($t['is_active'])));
+} elseif ($targetStatus === 'passive') {
+    $targets = array_values(array_filter($targets, static fn($t) => empty($t['is_active'])));
+}
 $editTargetId = (int) ($_GET['edit_target'] ?? 0);
 $editTarget = null;
 $editTiers = [];
-foreach ($targets as $t) {
+foreach ($allTargets as $t) {
     if ((int) $t['id'] === $editTargetId) {
         $editTarget = $t;
         $editTiers = prim_target_tiers((int) $t['id']);
@@ -277,6 +297,11 @@ require __DIR__ . '/../../includes/header.php';
 <?php endif; ?>
 
 <?php if ($tab === 'urunler'): ?>
+<div class="admin-filter-bar">
+    <a class="filter-chip<?= $productStatus === 'all' ? ' active' : '' ?>" href="/admin/prim.php?tab=urunler">Tümü</a>
+    <a class="filter-chip<?= $productStatus === 'active' ? ' active' : '' ?>" href="/admin/prim.php?tab=urunler&pstatus=active">Aktif</a>
+    <a class="filter-chip<?= $productStatus === 'passive' ? ' active' : '' ?>" href="/admin/prim.php?tab=urunler&pstatus=passive">Pasif</a>
+</div>
 <div class="admin-layout">
     <form method="post" class="admin-form-card">
         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
@@ -287,7 +312,7 @@ require __DIR__ . '/../../includes/header.php';
             <strong>Yüzde:</strong> satış tutarının %’si &nbsp;·&nbsp;
             <strong>Sabit tutar:</strong> her adet için sabit TL &nbsp;·&nbsp;
             <strong>Genelden al:</strong> Genel sekmesindeki oran &nbsp;·&nbsp;
-            <strong>Ek teşvik:</strong> bunlara ek, adet başı ekstra TL (eski adıyla SPIFF)
+            <strong>Ek teşvik:</strong> bunlara ek, adet başı ekstra TL
         </p>
         <div class="form-group"><label>Ad</label><input class="form-input" name="name" required value="<?= e($editProduct['name'] ?? '') ?>"></div>
         <div class="form-row">
@@ -311,19 +336,21 @@ require __DIR__ . '/../../includes/header.php';
         <div class="form-group"><label>Not</label><textarea class="form-input" name="note" rows="2"><?= e($editProduct['note'] ?? '') ?></textarea></div>
         <label class="check-row"><input type="checkbox" name="is_active" <?= !$editProduct || !empty($editProduct['is_active']) ? 'checked' : '' ?>> Aktif</label>
         <button class="btn btn-primary btn-block" type="submit"><?= $editProduct ? 'Kaydet' : 'Ekle' ?></button>
-        <?php if ($editProduct): ?><a class="btn btn-ghost btn-block" href="/admin/prim.php?tab=urunler">İptal</a><?php endif; ?>
+        <?php if ($editProduct): ?><a class="btn btn-ghost btn-block" href="/admin/prim.php?tab=urunler&pstatus=<?= e($productStatus) ?>">İptal</a><?php endif; ?>
     </form>
 
     <div class="admin-table-wrap">
         <table class="report-table">
-            <thead><tr><th>Ürün</th><th>Komisyon tipi</th><th>Oran</th><th>Ek teşvik</th><th></th></tr></thead>
+            <thead><tr><th>Ürün</th><th>Komisyon tipi</th><th>Oran</th><th>Ek teşvik</th><th>Durum</th><th></th></tr></thead>
             <tbody>
+            <?php if (!$products): ?>
+            <tr><td colspan="6">Bu filtrede ürün yok.</td></tr>
+            <?php endif; ?>
             <?php foreach ($products as $p): ?>
-            <tr>
+            <tr class="<?= empty($p['is_active']) ? 'row-passive' : '' ?>">
                 <td>
                     <strong><?= e($p['name']) ?></strong>
                     <?php if ($p['category']): ?><br><span class="muted"><?= e($p['category']) ?></span><?php endif; ?>
-                    <?= empty($p['is_active']) ? ' <em>(pasif)</em>' : '' ?>
                 </td>
                 <td><?= e(prim_commission_mode_short((string)$p['commission_mode'])) ?></td>
                 <td>
@@ -332,13 +359,14 @@ require __DIR__ . '/../../includes/header.php';
                     <?php else: ?>Genel ayar<?php endif; ?>
                 </td>
                 <td><?= (float)$p['spiff_amount'] > 0 ? e(format_money_tr((float)$p['spiff_amount'])) : '—' ?></td>
+                <td><span class="status-pill small <?= !empty($p['is_active']) ? 'status-green' : 'status-slate' ?>"><?= !empty($p['is_active']) ? 'Aktif' : 'Pasif' ?></span></td>
                 <td class="table-actions">
-                    <a class="btn btn-sm btn-ghost" href="/admin/prim.php?tab=urunler&edit_product=<?= (int)$p['id'] ?>">Düzenle</a>
-                    <form method="post" class="inline-form" onsubmit="return confirm('Silinsin mi?')">
+                    <a class="btn btn-sm btn-ghost" href="/admin/prim.php?tab=urunler&pstatus=<?= e($productStatus) ?>&edit_product=<?= (int)$p['id'] ?>">Düzenle</a>
+                    <form method="post" class="inline-form">
                         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-                        <input type="hidden" name="action" value="delete_product">
+                        <input type="hidden" name="action" value="toggle_product">
                         <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
-                        <button class="btn btn-sm btn-ghost" type="submit">Sil</button>
+                        <button class="btn btn-sm btn-ghost" type="submit"><?= !empty($p['is_active']) ? 'Pasife al' : 'Aktifleştir' ?></button>
                     </form>
                 </td>
             </tr>
@@ -350,6 +378,11 @@ require __DIR__ . '/../../includes/header.php';
 <?php endif; ?>
 
 <?php if ($tab === 'hedefler'): ?>
+<div class="admin-filter-bar">
+    <a class="filter-chip<?= $targetStatus === 'all' ? ' active' : '' ?>" href="/admin/prim.php?tab=hedefler">Tümü</a>
+    <a class="filter-chip<?= $targetStatus === 'active' ? ' active' : '' ?>" href="/admin/prim.php?tab=hedefler&tstatus=active">Aktif</a>
+    <a class="filter-chip<?= $targetStatus === 'passive' ? ' active' : '' ?>" href="/admin/prim.php?tab=hedefler&tstatus=passive">Pasif</a>
+</div>
 <div class="admin-layout">
     <form method="post" class="admin-form-card">
         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
@@ -476,12 +509,12 @@ require __DIR__ . '/../../includes/header.php';
                     <?php if ($prog['bonus'] > 0): ?><br><span class="muted">Bonus <?= e(format_money_tr($prog['bonus'])) ?></span><?php endif; ?>
                 </td>
                 <td class="table-actions">
-                    <a class="btn btn-sm btn-ghost" href="/admin/prim.php?tab=hedefler&edit_target=<?= (int)$t['id'] ?>">Düzenle</a>
-                    <form method="post" class="inline-form" onsubmit="return confirm('Silinsin mi?')">
+                    <a class="btn btn-sm btn-ghost" href="/admin/prim.php?tab=hedefler&tstatus=<?= e($targetStatus) ?>&edit_target=<?= (int)$t['id'] ?>">Düzenle</a>
+                    <form method="post" class="inline-form">
                         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-                        <input type="hidden" name="action" value="delete_target">
+                        <input type="hidden" name="action" value="toggle_target">
                         <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
-                        <button class="btn btn-sm btn-ghost" type="submit">Sil</button>
+                        <button class="btn btn-sm btn-ghost" type="submit"><?= !empty($t['is_active']) ? 'Pasife al' : 'Aktifleştir' ?></button>
                     </form>
                 </td>
             </tr>
