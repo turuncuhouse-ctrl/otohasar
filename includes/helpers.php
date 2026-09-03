@@ -259,6 +259,91 @@ function insurance_form_doc_types(): array
     ];
 }
 
+function vehicle_location_labels(): array
+{
+    return [
+        'serviste'  => 'Serviste',
+        'musteride' => 'Müşteride',
+    ];
+}
+
+function damage_type_options(): array
+{
+    return [
+        'Çarpışma',
+        'Park hasarı',
+        'Cam kırılması',
+        'Hırsızlık / zorla açma',
+        'Doğal afet',
+        'Hayvan çarpması',
+        'Yanma',
+        'Diğer',
+    ];
+}
+
+function parse_damage_date(?string $raw): ?string
+{
+    $raw = trim((string) $raw);
+    if ($raw === '') {
+        return null;
+    }
+    $dt = DateTime::createFromFormat('Y-m-d', $raw);
+    return ($dt && $dt->format('Y-m-d') === $raw) ? $raw : null;
+}
+
+function parse_damage_time(?string $raw): ?string
+{
+    $raw = trim((string) $raw);
+    if ($raw === '') {
+        return null;
+    }
+    if (preg_match('/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/', $raw, $m)) {
+        $h = (int) $m[1];
+        $i = (int) $m[2];
+        if ($h >= 0 && $h <= 23 && $i >= 0 && $i <= 59) {
+            return sprintf('%02d:%02d:00', $h, $i);
+        }
+    }
+    return null;
+}
+
+function parse_vehicle_location(?string $raw): ?string
+{
+    $raw = trim((string) $raw);
+    return isset(vehicle_location_labels()[$raw]) ? $raw : null;
+}
+
+function format_damage_date(?string $value): string
+{
+    if ($value === null || $value === '' || $value === '0000-00-00') {
+        return '—';
+    }
+    $ts = strtotime($value);
+    return $ts ? date('d.m.Y', $ts) : '—';
+}
+
+function format_damage_time(?string $value): string
+{
+    if ($value === null || $value === '') {
+        return '—';
+    }
+    if (preg_match('/^(\d{2}):(\d{2})/', $value, $m)) {
+        return $m[1] . ':' . $m[2];
+    }
+    return '—';
+}
+
+function damage_time_input_value(?string $value): string
+{
+    $fmt = format_damage_time($value);
+    return $fmt === '—' ? '' : $fmt;
+}
+
+function format_vehicle_location(?string $value): string
+{
+    return vehicle_location_labels()[$value ?? ''] ?? '—';
+}
+
 function unique_insurance_doc_type(PDO $pdo, int $companyId, string $title, ?int $excludeId = null): string
 {
     $base = slugify_code($title);

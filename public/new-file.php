@@ -104,6 +104,44 @@ require __DIR__ . '/../includes/header.php';
                     <input type="text" id="claim_no" name="claim_no" class="form-input">
                 </div>
             </div>
+            <hr class="form-divider">
+            <h3 class="form-section-title">Hasar bilgisi</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="damage_date">Hasar tarihi</label>
+                    <input type="date" id="damage_date" name="damage_date" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="damage_time">Hasar saati</label>
+                    <input type="time" id="damage_time" name="damage_time" class="form-input">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="damage_type">Hasar şekli</label>
+                <input type="text" id="damage_type" name="damage_type" class="form-input" list="damageTypeList" placeholder="Örn: Çarpışma">
+                <datalist id="damageTypeList">
+                    <?php foreach (damage_type_options() as $opt): ?>
+                    <option value="<?= e($opt) ?>">
+                    <?php endforeach; ?>
+                </datalist>
+            </div>
+            <div class="form-group">
+                <label for="damage_place">Hasar yeri</label>
+                <input type="text" id="damage_place" name="damage_place" class="form-input" placeholder="İl / ilçe / cadde">
+            </div>
+            <div class="form-group">
+                <label>Araç şu an nerede?</label>
+                <div class="loc-toggle">
+                    <label class="loc-option">
+                        <input type="radio" name="vehicle_location" value="serviste" checked>
+                        <span>Serviste</span>
+                    </label>
+                    <label class="loc-option">
+                        <input type="radio" name="vehicle_location" value="musteride">
+                        <span>Müşteride</span>
+                    </label>
+                </div>
+            </div>
             <div class="form-group">
                 <label for="note">Not</label>
                 <textarea id="note" name="note" class="form-input" rows="2"></textarea>

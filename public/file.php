@@ -63,6 +63,9 @@ require __DIR__ . '/../includes/header.php';
             <?= plate_badge_html($file['plate'], $file['work_order_no'] ?? null) ?>
             <h1><?= e($file['file_number']) ?></h1>
             <span class="status-pill <?= e(status_colors()[$file['status']]) ?>"><?= e($statuses[$file['status']]) ?></span>
+            <?php if (!empty($file['vehicle_location'])): ?>
+            <span class="loc-badge loc-<?= e($file['vehicle_location']) ?>"><?= e(format_vehicle_location($file['vehicle_location'])) ?></span>
+            <?php endif; ?>
         </div>
         <div class="file-header-right">
             <?php if ($permissions['can_change_status']): ?>
@@ -326,6 +329,46 @@ require __DIR__ . '/../includes/header.php';
                     <div class="form-group"><label>Hasar No</label><input class="form-input" name="claim_no" value="<?= e($file['claim_no'] ?? '') ?>"></div>
                 </div>
                 <div class="info-section">
+                    <h3>Hasar</h3>
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label>Hasar tarihi</label>
+                            <input class="form-input" type="date" name="damage_date" value="<?= e($file['damage_date'] ?? '') ?>">
+                        </div>
+                        <div class="form-group">
+                            <label>Hasar saati</label>
+                            <input class="form-input" type="time" name="damage_time" value="<?= e(damage_time_input_value($file['damage_time'] ?? null)) ?>">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Hasar şekli</label>
+                        <input class="form-input" name="damage_type" list="damageTypeList" value="<?= e($file['damage_type'] ?? '') ?>" placeholder="Örn: Çarpışma">
+                        <datalist id="damageTypeList">
+                            <?php foreach (damage_type_options() as $opt): ?>
+                            <option value="<?= e($opt) ?>">
+                            <?php endforeach; ?>
+                        </datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>Hasar yeri</label>
+                        <input class="form-input" name="damage_place" value="<?= e($file['damage_place'] ?? '') ?>" placeholder="İl / ilçe / cadde">
+                    </div>
+                    <div class="form-group">
+                        <label>Araç şu an nerede?</label>
+                        <div class="loc-toggle">
+                            <?php $loc = $file['vehicle_location'] ?? ''; ?>
+                            <label class="loc-option">
+                                <input type="radio" name="vehicle_location" value="serviste" <?= $loc === 'serviste' ? 'checked' : '' ?>>
+                                <span>Serviste</span>
+                            </label>
+                            <label class="loc-option">
+                                <input type="radio" name="vehicle_location" value="musteride" <?= $loc === 'musteride' ? 'checked' : '' ?>>
+                                <span>Müşteride</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="info-section">
                     <h3>Dosya</h3>
                     <dl class="info-readonly">
                         <dt>Danışman</dt><dd><?= e($file['advisor_name']) ?></dd>
@@ -378,6 +421,16 @@ require __DIR__ . '/../includes/header.php';
                     <dt>Şirket</dt><dd><?= e($file['insurance_company'] ?? '-') ?></dd>
                     <dt>Poliçe No</dt><dd><?= e($file['policy_no'] ?? '-') ?></dd>
                     <dt>Hasar No</dt><dd><?= e($file['claim_no'] ?? '-') ?></dd>
+                </dl>
+            </div>
+            <div class="info-section">
+                <h3>Hasar</h3>
+                <dl>
+                    <dt>Hasar tarihi</dt><dd><?= e(format_damage_date($file['damage_date'] ?? null)) ?></dd>
+                    <dt>Hasar saati</dt><dd><?= e(format_damage_time($file['damage_time'] ?? null)) ?></dd>
+                    <dt>Hasar şekli</dt><dd><?= e($file['damage_type'] ?? '-') ?></dd>
+                    <dt>Hasar yeri</dt><dd><?= e($file['damage_place'] ?? '-') ?></dd>
+                    <dt>Araç konumu</dt><dd><?= e(format_vehicle_location($file['vehicle_location'] ?? null)) ?></dd>
                 </dl>
             </div>
             <div class="info-section">

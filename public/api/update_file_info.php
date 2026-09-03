@@ -25,6 +25,11 @@ $insuranceCo = trim($_POST['insurance_company'] ?? '');
 $policyNo    = trim($_POST['policy_no'] ?? '');
 $claimNo     = trim($_POST['claim_no'] ?? '');
 $note        = trim($_POST['note'] ?? '');
+$damageDate  = parse_damage_date($_POST['damage_date'] ?? null);
+$damageTime  = parse_damage_time($_POST['damage_time'] ?? null);
+$damageType  = trim($_POST['damage_type'] ?? '');
+$damagePlace = trim($_POST['damage_place'] ?? '');
+$vehicleLoc  = parse_vehicle_location($_POST['vehicle_location'] ?? null);
 
 if ($customerName === '' || $customerPhone === '' || $customerAddress === '') {
     json_error('Müşteri adı, telefon ve adres zorunludur');
@@ -107,7 +112,8 @@ try {
 
     $stmt = $pdo->prepare(
         'UPDATE damage_files
-         SET work_order_no = ?, insurance_company = ?, policy_no = ?, claim_no = ?, note = ?
+         SET work_order_no = ?, insurance_company = ?, policy_no = ?, claim_no = ?, note = ?,
+             damage_date = ?, damage_time = ?, damage_type = ?, damage_place = ?, vehicle_location = ?
          WHERE id = ?'
     );
     $stmt->execute([
@@ -116,6 +122,11 @@ try {
         $policyNo !== '' ? $policyNo : null,
         $claimNo !== '' ? $claimNo : null,
         $note !== '' ? $note : null,
+        $damageDate,
+        $damageTime,
+        $damageType !== '' ? mb_substr($damageType, 0, 120) : null,
+        $damagePlace !== '' ? mb_substr($damagePlace, 0, 255) : null,
+        $vehicleLoc,
         $fileId,
     ]);
 

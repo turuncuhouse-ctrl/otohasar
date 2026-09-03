@@ -79,6 +79,10 @@ function ensure_schema_upgrades(PDO $pdo): void
     if ((int) $stmt->fetchColumn() === 0) {
         run_migration_script($scripts . 'migrate_v11.php');
     }
+    if (!schema_column_exists($pdo, 'damage_files', 'damage_date')
+        || !schema_column_exists($pdo, 'damage_files', 'vehicle_location')) {
+        run_migration_script($scripts . 'migrate_v12.php');
+    }
 }
 
 function db(): PDO

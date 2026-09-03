@@ -13,6 +13,7 @@ if ($currentUser['role'] !== 'advisor') {
 }
 
 $sql = "SELECT df.id, df.file_number, df.status, df.insurance_company, df.created_at, df.status_changed_at, df.advisor_id,
+               df.vehicle_location, df.damage_date,
                v.plate, v.brand, v.model,
                c.name AS customer_name, c.phone AS customer_phone,
                u.name AS advisor_name,
@@ -76,6 +77,10 @@ function render_file_row(array $card): string
     $color = status_colors()[$card['status']] ?? '';
     $opened = format_datetime_short($card['created_at'] ?? null);
     $statusAt = format_datetime_short($card['status_changed_at'] ?? $card['created_at'] ?? null);
+    $loc = $card['vehicle_location'] ?? '';
+    $locHtml = $loc !== ''
+        ? '<span class="loc-badge loc-' . e($loc) . '">' . e(format_vehicle_location($loc)) . '</span>'
+        : '';
 
     return '<article class="file-row" data-id="' . (int)$card['id'] . '" data-status="' . e($card['status']) . '">'
         . '<a class="file-row-main" href="/file.php?id=' . (int)$card['id'] . '">'
@@ -84,6 +89,7 @@ function render_file_row(array $card): string
         . '<div class="file-row-top">'
         . '<span class="card-file-no">' . e($card['file_number']) . '</span>'
         . '<span class="status-pill small ' . e($color) . '">' . e($statusLabel) . '</span>'
+        . $locHtml
         . '</div>'
         . '<div class="file-row-vehicle">' . e($card['brand'] . ' ' . $card['model']) . '</div>'
         . '<div class="file-row-meta">' . e($card['customer_name'])
@@ -184,6 +190,7 @@ require __DIR__ . '/../includes/header.php';
             <?php foreach ($board[$status] as $card):
                 $opened = format_datetime_short($card['created_at'] ?? null);
                 $statusAt = format_datetime_short($card['status_changed_at'] ?? $card['created_at'] ?? null);
+                $loc = $card['vehicle_location'] ?? '';
             ?>
             <div class="kanban-card" draggable="true" data-id="<?= (int)$card['id'] ?>" data-status="<?= e($card['status']) ?>">
                 <a href="/file.php?id=<?= (int)$card['id'] ?>" class="card-link">
@@ -195,6 +202,9 @@ require __DIR__ . '/../includes/header.php';
                         <span class="card-docs">📎 <?= (int)$card['doc_count'] ?></span>
                         <span class="card-insurance"><?= e($card['insurance_company']) ?></span>
                     </div>
+                    <?php if ($loc !== ''): ?>
+                    <div class="card-loc"><span class="loc-badge loc-<?= e($loc) ?>"><?= e(format_vehicle_location($loc)) ?></span></div>
+                    <?php endif; ?>
                     <div class="card-dates">
                         <span title="Dosya açılış">Açılış <?= e($opened) ?></span>
                         <span title="Bu duruma geçiş">Durum <?= e($statusAt) ?></span>
@@ -203,7 +213,8 @@ require __DIR__ . '/../includes/header.php';
                 </a>
                 <?= wa_button_html($card['customer_phone'] ?? null, $card['customer_name'], $card['plate'], $card['file_number'], $card['status'], (int)$card['id']) ?>
             </div>
-            <?php endforeach; ?>        </div>
+            <?php endforeach; ?>
+        </div>
     </div>
     <?php endforeach; ?>
 </div>

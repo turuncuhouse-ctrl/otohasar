@@ -20,6 +20,11 @@ $insuranceCo    = trim($_POST['insurance_company'] ?? '');
 $policyNo       = trim($_POST['policy_no'] ?? '');
 $claimNo        = trim($_POST['claim_no'] ?? '');
 $note           = trim($_POST['note'] ?? '');
+$damageDate     = parse_damage_date($_POST['damage_date'] ?? null);
+$damageTime     = parse_damage_time($_POST['damage_time'] ?? null);
+$damageType     = trim($_POST['damage_type'] ?? '');
+$damagePlace    = trim($_POST['damage_place'] ?? '');
+$vehicleLoc     = parse_vehicle_location($_POST['vehicle_location'] ?? 'serviste') ?? 'serviste';
 
 if ($user['role'] === 'workshop' || $user['role'] === 'admin') {
     json_error('Bu rol dosya açamaz', 403);
@@ -92,8 +97,9 @@ try {
     $fileNumber = generate_file_number($pdo);
 
     $stmt = $pdo->prepare(
-        'INSERT INTO damage_files (vehicle_id, advisor_id, file_number, work_order_no, insurance_company, policy_no, claim_no, note, status_changed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())'
+        'INSERT INTO damage_files (vehicle_id, advisor_id, file_number, work_order_no, insurance_company, policy_no, claim_no, note,
+            damage_date, damage_time, damage_type, damage_place, vehicle_location, status_changed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())'
     );
     $stmt->execute([
         $vehicleId,
@@ -104,6 +110,11 @@ try {
         $policyNo !== '' ? $policyNo : null,
         $claimNo !== '' ? $claimNo : null,
         $note !== '' ? $note : null,
+        $damageDate,
+        $damageTime,
+        $damageType !== '' ? mb_substr($damageType, 0, 120) : null,
+        $damagePlace !== '' ? mb_substr($damagePlace, 0, 255) : null,
+        $vehicleLoc,
     ]);
     $fileId = (int) $pdo->lastInsertId();
 

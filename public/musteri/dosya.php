@@ -66,6 +66,9 @@ $pageTitle = $file['file_number'];
                 <?php if (!empty($file['insurance_company'])): ?>
                 <p class="portal-sub">Kasko: <?= e($file['insurance_company']) ?></p>
                 <?php endif; ?>
+                <?php if (!empty($file['vehicle_location'])): ?>
+                <p class="portal-sub">Araç: <?= e(format_vehicle_location($file['vehicle_location'])) ?></p>
+                <?php endif; ?>
             </div>
             <a class="btn btn-ghost btn-sm" href="/musteri/cikis.php">Çıkış</a>
         </div>
