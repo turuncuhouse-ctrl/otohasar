@@ -122,6 +122,9 @@ function ensure_schema_upgrades(PDO $pdo): void
     if (!schema_table_exists($pdo, 'prim_sales') || !schema_table_exists($pdo, 'tour_slides')) {
         run_migration_script($scripts . 'migrate_v16.php');
     }
+    if (!migration_applied($pdo, 'v17_servis_muduru_admin')) {
+        run_migration_script($scripts . 'migrate_v17.php');
+    }
 }
 
 function db(): PDO

@@ -350,9 +350,9 @@ function legacy_role_permissions(string $role): array
     $sets = [
         'admin' => all_permission_keys(),
         'manager' => [
-            'access_hasar', 'access_prim', 'access_reports', 'access_tour',
-            'hasar_create_file', 'hasar_edit_all', 'hasar_edit_own', 'hasar_status_all', 'hasar_search',
-            'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_team', 'prim_view_amounts',
+            'access_hasar', 'access_prim', 'access_admin', 'access_reports', 'access_tour',
+            'hasar_create_file', 'hasar_edit_all', 'hasar_edit_own', 'hasar_status_all', 'hasar_status_limited', 'hasar_search',
+            'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_team', 'prim_view_amounts', 'prim_manage_settings',
         ],
         'advisor' => [
             'access_hasar', 'access_prim', 'access_tour',
@@ -423,7 +423,20 @@ function user_home_url(array $user): string
 
 function is_admin_user(array $user): bool
 {
+    // Sistem Admin veya access_admin izni olan gruplar (örn. Servis Müdürü)
     return user_can($user, 'access_admin') || ($user['role'] ?? '') === 'admin';
+}
+
+function is_system_founder(array $user): bool
+{
+    $gid = isset($user['group_id']) ? (int) $user['group_id'] : 0;
+    if ($gid > 0) {
+        $g = user_group_by_id($gid);
+        if ($g && ($g['code'] ?? '') === 'admin') {
+            return true;
+        }
+    }
+    return ($user['role'] ?? '') === 'admin';
 }
 
 function is_manager_user(array $user): bool

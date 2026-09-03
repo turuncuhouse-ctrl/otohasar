@@ -63,6 +63,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Grup bulunamadı';
             } elseif ((int) $g['is_system'] === 1) {
                 $error = 'Sistem grupları silinemez';
+            } elseif (!is_system_founder($currentUser) && ($g['code'] ?? '') === 'admin') {
+                $error = 'Sistem Admin grubunu yalnızca kurucu silebilir';
             } else {
                 $stmt = $pdo->prepare('SELECT COUNT(*) FROM users WHERE group_id=?');
                 $stmt->execute([$id]);

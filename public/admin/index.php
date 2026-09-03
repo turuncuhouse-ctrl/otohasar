@@ -35,6 +35,7 @@ require __DIR__ . '/../../includes/header.php';
 
 <p class="dash-sub" style="margin-bottom:1.25rem">
     Sistem ayarları: kullanıcılar, grup yetkileri, prim, evrak kategorileri, dosya durumları ve sigorta şirketleri.
+    <br>Servis Müdürü ve Sistem Admin bu panele erişebilir. Sistem Admin kurucu hesaptır.
     <br>Önce <a href="/admin/groups.php">Kullanıcı Grupları</a> ve <a href="/admin/users.php">Kullanıcılar</a>ı tanımlayın.
     <br>Şifrenizi <a href="/profile.php">Hesabım</a> sayfasından değiştirebilirsiniz.
 </p>

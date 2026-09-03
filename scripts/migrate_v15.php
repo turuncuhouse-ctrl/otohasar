@@ -86,9 +86,9 @@ $permSets = [
         'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_team', 'prim_view_amounts', 'prim_manage_settings',
     ],
     'servis_muduru' => [
-        'access_hasar', 'access_prim', 'access_reports', 'access_tour',
-        'hasar_create_file', 'hasar_edit_all', 'hasar_edit_own', 'hasar_status_all', 'hasar_search',
-        'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_team', 'prim_view_amounts',
+        'access_hasar', 'access_prim', 'access_admin', 'access_reports', 'access_tour',
+        'hasar_create_file', 'hasar_edit_all', 'hasar_edit_own', 'hasar_status_all', 'hasar_status_limited', 'hasar_search',
+        'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_team', 'prim_view_amounts', 'prim_manage_settings',
     ],
     'servis_mudur_yrd' => [
         'access_hasar', 'access_prim', 'access_reports', 'access_tour',
