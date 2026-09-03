@@ -3,10 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 
 $currentUser = require_auth();
-if ($currentUser['role'] === 'workshop' || $currentUser['role'] === 'admin') {
-    header('Location: ' . ($currentUser['role'] === 'admin' ? '/admin/' : '/dashboard.php'));
-    exit;
-}
+require_perm($currentUser, 'hasar_create_file');
 
 $pageTitle = 'Yeni Dosya';
 $activeNav = 'new-file';

@@ -6,6 +6,14 @@ if (!isset($pageTitle)) {
 $currentUser = $currentUser ?? null;
 $role = $currentUser['role'] ?? '';
 $assetVer = asset_version();
+$homeUrl = $currentUser ? user_home_url($currentUser) : '/login.php';
+$canHasar = $currentUser && user_can($currentUser, 'access_hasar');
+$canPrim = $currentUser && user_can($currentUser, 'access_prim');
+$canReports = $currentUser && user_can($currentUser, 'access_reports');
+$canAdmin = $currentUser && user_can($currentUser, 'access_admin');
+$canTour = $currentUser && user_can($currentUser, 'access_tour');
+$canCreateFile = $currentUser && user_can($currentUser, 'hasar_create_file');
+$canSearch = $currentUser && user_can($currentUser, 'hasar_search');
 ?>
 <!DOCTYPE html>
 <html lang="tr">
@@ -28,24 +36,34 @@ $assetVer = asset_version();
 <?php if ($currentUser): ?>
 <header class="topbar">
     <div class="topbar-inner">
-        <a href="/dashboard.php" class="logo">OTOHASAR</a>
+        <a href="<?= e($homeUrl) ?>" class="logo">OTOHASAR</a>
         <nav class="nav-links" id="mainNav">
+            <?php if ($canHasar): ?>
             <a href="/dashboard.php" class="nav-link<?= ($activeNav ?? '') === 'dashboard' ? ' active' : '' ?>">Pano</a>
-            <?php if (!in_array($role, ['workshop', 'admin'], true)): ?>
+            <?php endif; ?>
+            <?php if ($canCreateFile): ?>
             <a href="/new-file.php" class="nav-link<?= ($activeNav ?? '') === 'new-file' ? ' active' : '' ?>">Yeni Dosya</a>
             <?php endif; ?>
+            <?php if ($canSearch): ?>
             <a href="/search.php" class="nav-link<?= ($activeNav ?? '') === 'search' ? ' active' : '' ?>">Ara</a>
-            <?php if ($role === 'manager'): ?>
+            <?php endif; ?>
+            <?php if ($canPrim && prim_is_enabled()): ?>
+            <a href="/prim/" class="nav-link<?= ($activeNav ?? '') === 'prim' ? ' active' : '' ?>">Prim</a>
+            <?php endif; ?>
+            <?php if ($canReports): ?>
             <a href="/reports.php" class="nav-link<?= ($activeNav ?? '') === 'reports' ? ' active' : '' ?>">Raporlar</a>
             <?php endif; ?>
-            <?php if ($role === 'admin'): ?>
+            <?php if ($canTour): ?>
+            <a href="/tour.php" class="nav-link<?= ($activeNav ?? '') === 'tour' ? ' active' : '' ?>">Tanıtım</a>
+            <?php endif; ?>
+            <?php if ($canAdmin): ?>
             <a href="/admin/" class="nav-link<?= ($activeNav ?? '') === 'admin' ? ' active' : '' ?>">Sistem Ayarları</a>
             <?php endif; ?>
             <a href="/profile.php" class="nav-link<?= ($activeNav ?? '') === 'profile' ? ' active' : '' ?>">Şifre</a>
             <a href="/logout.php" class="nav-link nav-logout">Çıkış</a>
         </nav>
         <div class="topbar-user">
-            <span class="user-badge role-<?= e($role) ?>"><?= e(role_labels()[$role] ?? $role) ?></span>
+            <span class="user-badge role-<?= e($role) ?>"><?= e(user_group_label($currentUser)) ?></span>
             <a href="/profile.php" class="user-name"><?= e($currentUser['name']) ?></a>
             <a href="/logout.php" class="btn btn-sm btn-ghost logout-desk">Çıkış</a>
         </div>

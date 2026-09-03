@@ -17,10 +17,12 @@ $userCount = (int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
 $insCount = 0;
 $statusCount = 0;
 $catCount = 0;
+$groupCount = 0;
 try {
     $insCount = (int) $pdo->query('SELECT COUNT(*) FROM insurance_companies WHERE is_active=1')->fetchColumn();
     $statusCount = (int) $pdo->query('SELECT COUNT(*) FROM app_statuses WHERE is_active=1')->fetchColumn();
     $catCount = (int) $pdo->query('SELECT COUNT(*) FROM app_categories WHERE is_active=1')->fetchColumn();
+    $groupCount = (int) $pdo->query('SELECT COUNT(*) FROM user_groups WHERE is_active=1')->fetchColumn();
 } catch (Throwable $e) {
 }
 
@@ -32,17 +34,31 @@ require __DIR__ . '/../../includes/header.php';
 </div>
 
 <p class="dash-sub" style="margin-bottom:1.25rem">
-    Sistem ayarları: kullanıcılar, evrak kategorileri, dosya durumları ve anlaşmalı sigorta şirketleri.
-    <br>Önce <a href="/admin/users.php">Kullanıcılar</a>dan Servis Yöneticisi ve Hasar Danışmanı atayın.
-    <br>Dosya / hasar işlemleri için <strong>Servis Yöneticisi</strong> hesabını kullanın.
+    Sistem ayarları: kullanıcılar, grup yetkileri, prim, evrak kategorileri, dosya durumları ve sigorta şirketleri.
+    <br>Önce <a href="/admin/groups.php">Kullanıcı Grupları</a> ve <a href="/admin/users.php">Kullanıcılar</a>ı tanımlayın.
     <br>Şifrenizi <a href="/profile.php">Hesabım</a> sayfasından değiştirebilirsiniz.
 </p>
 
 <div class="admin-grid">
     <a class="admin-card" href="/admin/users.php">
         <h2>Kullanıcılar</h2>
-        <p>Kullanıcı adı, şifre ve rol yönetimi</p>
+        <p>Kullanıcı adı, şifre ve grup ataması</p>
         <span class="admin-stat"><?= $userCount ?> kullanıcı</span>
+    </a>
+    <a class="admin-card" href="/admin/groups.php">
+        <h2>Kullanıcı Grupları</h2>
+        <p>Grup ekleyin ve görünürlük / işlem izinlerini ayarlayın</p>
+        <span class="admin-stat"><?= $groupCount ?> grup</span>
+    </a>
+    <a class="admin-card" href="/admin/prim.php">
+        <h2>Prim Ayarları</h2>
+        <p>Süre penceresi, yüzde veya sabit prim hesabı</p>
+        <span class="admin-stat">Yapılandır</span>
+    </a>
+    <a class="admin-card" href="/admin/tour.php">
+        <h2>Tanıtım Sunumu</h2>
+        <p>Sistemin işleyişini anlatan slaytları düzenleyin</p>
+        <span class="admin-stat">İçerik</span>
     </a>
     <a class="admin-card" href="/admin/statuses.php">
         <h2>Araç / Dosya Durumları</h2>

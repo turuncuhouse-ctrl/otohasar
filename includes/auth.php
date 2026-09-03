@@ -49,23 +49,41 @@ function authenticate_user(): ?array
     start_session();
 
     if (!empty($_SESSION['user_id'])) {
-        $stmt = db()->prepare('SELECT id, name, username, role, email, phone, is_active FROM users WHERE id = ? AND is_active = 1');
-        $stmt->execute([$_SESSION['user_id']]);
-        $user = $stmt->fetch();
-        return $user ?: null;
+        try {
+            $stmt = db()->prepare('SELECT id, name, username, role, email, phone, is_active, group_id, tour_seen_at FROM users WHERE id = ? AND is_active = 1');
+            $stmt->execute([$_SESSION['user_id']]);
+            $user = $stmt->fetch();
+            return $user ?: null;
+        } catch (Throwable $e) {
+            $stmt = db()->prepare('SELECT id, name, username, role, email, phone, is_active FROM users WHERE id = ? AND is_active = 1');
+            $stmt->execute([$_SESSION['user_id']]);
+            $user = $stmt->fetch();
+            return $user ?: null;
+        }
     }
 
     $token = get_bearer_token();
     if ($token) {
         $hash = hash('sha256', $token);
-        $stmt = db()->prepare(
-            'SELECT u.id, u.name, u.username, u.role, u.email, u.phone, u.is_active
-             FROM auth_tokens t
-             JOIN users u ON u.id = t.user_id
-             WHERE t.token_hash = ? AND t.expires_at > NOW() AND u.is_active = 1'
-        );
-        $stmt->execute([$hash]);
-        return $stmt->fetch() ?: null;
+        try {
+            $stmt = db()->prepare(
+                'SELECT u.id, u.name, u.username, u.role, u.email, u.phone, u.is_active, u.group_id, u.tour_seen_at
+                 FROM auth_tokens t
+                 JOIN users u ON u.id = t.user_id
+                 WHERE t.token_hash = ? AND t.expires_at > NOW() AND u.is_active = 1'
+            );
+            $stmt->execute([$hash]);
+            return $stmt->fetch() ?: null;
+        } catch (Throwable $e) {
+            $stmt = db()->prepare(
+                'SELECT u.id, u.name, u.username, u.role, u.email, u.phone, u.is_active
+                 FROM auth_tokens t
+                 JOIN users u ON u.id = t.user_id
+                 WHERE t.token_hash = ? AND t.expires_at > NOW() AND u.is_active = 1'
+            );
+            $stmt->execute([$hash]);
+            return $stmt->fetch() ?: null;
+        }
     }
 
     return null;
@@ -157,12 +175,33 @@ function verify_login(string $username, string $password): ?array
 
 function require_role(array $user, array $roles): void
 {
-    if (!in_array($user['role'], $roles, true)) {
-        if (str_contains($_SERVER['REQUEST_URI'] ?? '', '/api/')) {
-            json_error('Yetkisiz erişim', 403);
-        }
-        http_response_code(403);
-        echo 'Yetkisiz erişim';
-        exit;
+    if (in_array($user['role'], $roles, true)) {
+        return;
     }
+    // Permission-aware fallback for migrated groups
+    if (in_array('manager', $roles, true) && (user_can($user, 'access_reports') || user_can($user, 'hasar_edit_all'))) {
+        return;
+    }
+    if (in_array('admin', $roles, true) && user_can($user, 'access_admin')) {
+        return;
+    }
+    if (str_contains($_SERVER['REQUEST_URI'] ?? '', '/api/')) {
+        json_error('Yetkisiz erişim', 403);
+    }
+    http_response_code(403);
+    echo 'Yetkisiz erişim';
+    exit;
+}
+
+function require_perm(array $user, string $perm): void
+{
+    if (user_can($user, $perm)) {
+        return;
+    }
+    if (str_contains($_SERVER['REQUEST_URI'] ?? '', '/api/')) {
+        json_error('Yetkisiz erişim', 403);
+    }
+    http_response_code(403);
+    echo 'Yetkisiz erişim';
+    exit;
 }

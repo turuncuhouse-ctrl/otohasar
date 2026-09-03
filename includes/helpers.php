@@ -250,14 +250,238 @@ function role_labels(): array
     ];
 }
 
+function permission_catalog(): array
+{
+    return [
+        'Modüller' => [
+            'access_hasar'   => 'Hasar panosu',
+            'access_prim'    => 'Prim sistemi',
+            'access_admin'   => 'Sistem ayarları',
+            'access_reports' => 'Raporlar',
+            'access_tour'    => 'Tanıtım',
+        ],
+        'Hasar' => [
+            'hasar_create_file'    => 'Dosya oluştur',
+            'hasar_edit_all'       => 'Tüm dosyaları düzenle',
+            'hasar_edit_own'       => 'Kendi dosyalarını düzenle',
+            'hasar_status_all'     => 'Tüm durumları değiştir',
+            'hasar_status_limited' => 'Sınırlı durum (onarım ↔ teslime hazır)',
+            'hasar_search'         => 'Dosya ara',
+        ],
+        'Prim' => [
+            'prim_sale_create'     => 'Satış kaydet',
+            'prim_sale_edit_own'   => 'Kendi satışını düzenle',
+            'prim_view_own'        => 'Kendi satışlarını gör',
+            'prim_view_team'       => 'Ekip satış özetini gör',
+            'prim_view_amounts'    => 'Tutar / prim tutarlarını gör',
+            'prim_manage_settings' => 'Prim ayarlarını yönet',
+        ],
+    ];
+}
+
+function all_permission_keys(): array
+{
+    $keys = [];
+    foreach (permission_catalog() as $group) {
+        foreach ($group as $k => $_label) {
+            $keys[] = $k;
+        }
+    }
+    return $keys;
+}
+
+function legacy_role_for_group_code(string $code): string
+{
+    return match ($code) {
+        'admin' => 'admin',
+        'servis_muduru', 'servis_mudur_yrd', 'hasar_yoneticisi' => 'manager',
+        'mekanik_danismani' => 'workshop',
+        default => 'advisor',
+    };
+}
+
+function user_groups(bool $activeOnly = true): array
+{
+    try {
+        $sql = 'SELECT * FROM user_groups';
+        if ($activeOnly) {
+            $sql .= ' WHERE is_active = 1';
+        }
+        $sql .= ' ORDER BY sort_order, id';
+        return db()->query($sql)->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function user_group_by_id(?int $id): ?array
+{
+    if (!$id) {
+        return null;
+    }
+    try {
+        $stmt = db()->prepare('SELECT * FROM user_groups WHERE id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+function group_permission_map(int $groupId): array
+{
+    $map = [];
+    try {
+        $stmt = db()->prepare('SELECT perm_key, allowed FROM group_permissions WHERE group_id = ?');
+        $stmt->execute([$groupId]);
+        foreach ($stmt->fetchAll() as $row) {
+            $map[(string) $row['perm_key']] = (int) $row['allowed'] === 1;
+        }
+    } catch (Throwable $e) {
+        $map = [];
+    }
+    return $map;
+}
+
+function legacy_role_permissions(string $role): array
+{
+    $all = array_fill_keys(all_permission_keys(), false);
+    $sets = [
+        'admin' => all_permission_keys(),
+        'manager' => [
+            'access_hasar', 'access_prim', 'access_reports', 'access_tour',
+            'hasar_create_file', 'hasar_edit_all', 'hasar_edit_own', 'hasar_status_all', 'hasar_search',
+            'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_team', 'prim_view_amounts',
+        ],
+        'advisor' => [
+            'access_hasar', 'access_prim', 'access_tour',
+            'hasar_create_file', 'hasar_edit_own', 'hasar_status_all', 'hasar_search',
+            'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_amounts',
+        ],
+        'workshop' => [
+            'access_hasar', 'access_prim', 'access_tour',
+            'hasar_status_limited', 'hasar_search',
+            'prim_sale_create', 'prim_sale_edit_own', 'prim_view_own', 'prim_view_amounts',
+        ],
+    ];
+    foreach ($sets[$role] ?? [] as $k) {
+        $all[$k] = true;
+    }
+    return $all;
+}
+
+function user_permissions(array $user): array
+{
+    $gid = isset($user['group_id']) ? (int) $user['group_id'] : 0;
+    if ($gid > 0) {
+        $map = group_permission_map($gid);
+        $out = array_fill_keys(all_permission_keys(), false);
+        foreach ($map as $k => $allowed) {
+            $out[$k] = $allowed;
+        }
+        return $out;
+    }
+    return legacy_role_permissions((string) ($user['role'] ?? ''));
+}
+
+function user_can(array $user, string $perm): bool
+{
+    $perms = user_permissions($user);
+    return !empty($perms[$perm]);
+}
+
+function user_group_label(array $user): string
+{
+    $gid = isset($user['group_id']) ? (int) $user['group_id'] : 0;
+    if ($gid > 0) {
+        $g = user_group_by_id($gid);
+        if ($g) {
+            return (string) $g['name'];
+        }
+    }
+    $role = (string) ($user['role'] ?? '');
+    return role_labels()[$role] ?? $role;
+}
+
+function user_home_url(array $user): string
+{
+    if (user_can($user, 'access_hasar')) {
+        return '/dashboard.php';
+    }
+    if (user_can($user, 'access_prim')) {
+        return '/prim/';
+    }
+    if (user_can($user, 'access_admin')) {
+        return '/admin/';
+    }
+    if (user_can($user, 'access_tour')) {
+        return '/tour.php';
+    }
+    return '/profile.php';
+}
+
 function is_admin_user(array $user): bool
 {
-    return ($user['role'] ?? '') === 'admin';
+    return user_can($user, 'access_admin') || ($user['role'] ?? '') === 'admin';
 }
 
 function is_manager_user(array $user): bool
 {
-    return ($user['role'] ?? '') === 'manager';
+    return user_can($user, 'access_reports')
+        || user_can($user, 'hasar_edit_all')
+        || ($user['role'] ?? '') === 'manager';
+}
+
+function set_group_permissions(int $groupId, array $allowedKeys): void
+{
+    $pdo = db();
+    $pdo->prepare('DELETE FROM group_permissions WHERE group_id = ?')->execute([$groupId]);
+    $ins = $pdo->prepare('INSERT INTO group_permissions (group_id, perm_key, allowed) VALUES (?,?,1)');
+    foreach ($allowedKeys as $key) {
+        if (in_array($key, all_permission_keys(), true)) {
+            $ins->execute([$groupId, $key]);
+        }
+    }
+}
+
+function prim_setting(string $key, string $default = ''): string
+{
+    return (string) (app_setting($key, $default) ?? $default);
+}
+
+function prim_is_enabled(): bool
+{
+    return prim_setting('prim_enabled', '1') === '1';
+}
+
+function prim_calc_amount(float $saleAmount, int $quantity = 1): float
+{
+    $mode = prim_setting('prim_mode', 'pct');
+    if ($mode === 'fixed') {
+        return round((float) prim_setting('prim_fixed_amount', '0') * max(1, $quantity), 2);
+    }
+    $pct = (float) prim_setting('prim_rate_pct', '5');
+    return round($saleAmount * $pct / 100, 2);
+}
+
+function format_money_tr(float $amount): string
+{
+    return number_format($amount, 2, ',', '.') . ' TL';
+}
+
+function tour_slides(bool $activeOnly = true): array
+{
+    try {
+        $sql = 'SELECT * FROM tour_slides';
+        if ($activeOnly) {
+            $sql .= ' WHERE is_active = 1';
+        }
+        $sql .= ' ORDER BY sort_order, id';
+        return db()->query($sql)->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
 }
 
 function insurance_companies(bool $activeOnly = true): array
@@ -1026,11 +1250,10 @@ function is_workshop_upload_granted(array $file): bool
 
 function can_grant_workshop_upload(array $user, array $file): bool
 {
-    $role = $user['role'] ?? '';
-    if ($role === 'manager') {
+    if (user_can($user, 'hasar_edit_all')) {
         return true;
     }
-    return $role === 'advisor' && (int) $file['advisor_id'] === (int) $user['id'];
+    return user_can($user, 'hasar_edit_own') && (int) $file['advisor_id'] === (int) $user['id'];
 }
 
 function upload_remaining_label(?string $until): ?string
@@ -1113,16 +1336,15 @@ function customer_portal_url(?string $plate = null, ?string $token = null): stri
 
 function get_file_permissions(array $user, array $file): array
 {
-    $role = $user['role'];
     $status = $file['status'];
-    $isManager = $role === 'manager';
     $isOwner = (int) $file['advisor_id'] === (int) $user['id'];
     $customerGrantActive = is_customer_upload_granted($file);
 
-    $canEdit = $isManager || ($role === 'advisor' && $isOwner);
+    $canEditAll = user_can($user, 'hasar_edit_all');
+    $canEditOwn = user_can($user, 'hasar_edit_own') && $isOwner;
+    $canEdit = $canEditAll || $canEditOwn;
     $canUploadAll = $canEdit;
-    // Atölye: onarımda iken onarım evrakı yükleyebilir
-    $canUploadOnarim = $role === 'workshop' && $status === 'onarimda';
+    $canUploadOnarim = user_can($user, 'hasar_status_limited') && $status === 'onarimda' && !$canEdit;
     $canUpload = $canUploadAll || $canUploadOnarim;
 
     $allowedCategories = [];
@@ -1135,9 +1357,9 @@ function get_file_permissions(array $user, array $file): array
     }
 
     $allowedStatuses = [];
-    if ($isManager || ($role === 'advisor' && $isOwner)) {
+    if (user_can($user, 'hasar_status_all') && ($canEditAll || $canEditOwn)) {
         $allowedStatuses = array_keys(status_labels());
-    } elseif ($role === 'workshop') {
+    } elseif (user_can($user, 'hasar_status_limited')) {
         if ($status === 'onarimda') {
             $allowedStatuses = ['onarimda', 'teslime_hazir'];
         } elseif ($status === 'teslime_hazir') {
@@ -1146,7 +1368,7 @@ function get_file_permissions(array $user, array $file): array
     }
 
     return [
-        'can_view'                   => true,
+        'can_view'                   => user_can($user, 'access_hasar'),
         'can_edit'                   => $canEdit,
         'can_upload'                 => $canUpload,
         'can_delete_docs'            => $canEdit,
@@ -1179,7 +1401,7 @@ function can_upload_category(array $user, array $file, string $category): bool
 
 function can_access_file(array $user, array $file): bool
 {
-    return in_array($user['role'], ['advisor', 'manager', 'workshop', 'admin'], true);
+    return user_can($user, 'access_hasar');
 }
 
 function format_plate(string $plate): string

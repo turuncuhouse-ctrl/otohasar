@@ -4,7 +4,7 @@ require_once __DIR__ . '/../includes/auth.php';
 
 $user = authenticate_user();
 if ($user) {
-    header('Location: /dashboard.php');
+    header('Location: ' . user_home_url($user));
     exit;
 }
 
@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $loggedIn = verify_login($username, $password);
     if ($loggedIn) {
         login_user($loggedIn);
-        header('Location: /dashboard.php');
+        header('Location: ' . user_home_url($loggedIn));
         exit;
     }
     $error = 'Geçersiz kullanıcı adı veya şifre';

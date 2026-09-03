@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 
 $currentUser = require_auth();
+require_perm($currentUser, 'access_hasar');
 $fileId = (int) ($_GET['id'] ?? 0);
 
 if ($fileId <= 0) {
@@ -68,6 +69,9 @@ require __DIR__ . '/../includes/header.php';
             <?php endif; ?>
         </div>
         <div class="file-header-right">
+            <?php if (user_can($currentUser, 'access_prim') && prim_is_enabled() && user_can($currentUser, 'prim_sale_create')): ?>
+            <a class="btn btn-ghost" href="/prim/sale.php?file_id=<?= (int)$fileId ?>&plate=<?= rawurlencode((string)($file['plate'] ?? '')) ?>">Ek Satış / Prim</a>
+            <?php endif; ?>
             <?php if ($permissions['can_change_status']): ?>
             <select id="statusSelect" class="form-input status-select">
                 <?php foreach ($statuses as $key => $label): ?>

@@ -1,25 +1,45 @@
 </main>
 <?php if ($currentUser):
-    $role = $currentUser['role'] ?? '';
+    $canHasar = user_can($currentUser, 'access_hasar');
+    $canPrim = user_can($currentUser, 'access_prim') && prim_is_enabled();
+    $canReports = user_can($currentUser, 'access_reports');
+    $canAdmin = user_can($currentUser, 'access_admin');
+    $canTour = user_can($currentUser, 'access_tour');
+    $canCreateFile = user_can($currentUser, 'hasar_create_file');
+    $canSearch = user_can($currentUser, 'hasar_search');
 ?>
 <nav class="bottom-nav" aria-label="Mobil menü">
+    <?php if ($canHasar): ?>
     <a href="/dashboard.php" class="<?= ($activeNav ?? '') === 'dashboard' ? 'active' : '' ?>">
         <span>Pano</span>
     </a>
-    <?php if (!in_array($role, ['workshop', 'admin'], true)): ?>
+    <?php endif; ?>
+    <?php if ($canCreateFile): ?>
     <a href="/new-file.php" class="<?= ($activeNav ?? '') === 'new-file' ? 'active' : '' ?>">
         <span>Yeni</span>
     </a>
     <?php endif; ?>
+    <?php if ($canSearch): ?>
     <a href="/search.php" class="<?= ($activeNav ?? '') === 'search' ? 'active' : '' ?>">
         <span>Ara</span>
     </a>
-    <?php if ($role === 'manager'): ?>
+    <?php endif; ?>
+    <?php if ($canPrim): ?>
+    <a href="/prim/" class="<?= ($activeNav ?? '') === 'prim' ? 'active' : '' ?>">
+        <span>Prim</span>
+    </a>
+    <?php endif; ?>
+    <?php if ($canReports): ?>
     <a href="/reports.php" class="<?= ($activeNav ?? '') === 'reports' ? 'active' : '' ?>">
         <span>Rapor</span>
     </a>
     <?php endif; ?>
-    <?php if ($role === 'admin'): ?>
+    <?php if ($canTour): ?>
+    <a href="/tour.php" class="<?= ($activeNav ?? '') === 'tour' ? 'active' : '' ?>">
+        <span>Tanıtım</span>
+    </a>
+    <?php endif; ?>
+    <?php if ($canAdmin): ?>
     <a href="/admin/" class="<?= ($activeNav ?? '') === 'admin' ? 'active' : '' ?>">
         <span>Ayarlar</span>
     </a>

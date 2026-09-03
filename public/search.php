@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 
 $currentUser = require_auth();
+require_perm($currentUser, 'hasar_search');
 $pageTitle = 'Arama';
 $activeNav = 'search';
 

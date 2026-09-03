@@ -3,13 +3,16 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 
 $currentUser = require_auth();
+require_perm($currentUser, 'access_hasar');
 $pageTitle = 'Pano';
 $activeNav = 'dashboard';
 
 $pdo = db();
-$scope = $_GET['scope'] ?? ($currentUser['role'] === 'advisor' ? 'mine' : 'all');
-if ($currentUser['role'] !== 'advisor') {
-    $scope = 'all';
+$scope = $_GET['scope'] ?? (user_can($currentUser, 'hasar_edit_all') ? 'all' : 'mine');
+if (user_can($currentUser, 'hasar_edit_all')) {
+    // keep requested scope
+} else {
+    $scope = 'mine';
 }
 
 $sql = "SELECT df.id, df.file_number, df.status, df.insurance_company, df.created_at, df.status_changed_at, df.advisor_id,
@@ -51,12 +54,14 @@ foreach ($files as $file) {
 }
 
 $advisorWorkload = [];
-if ($currentUser['role'] === 'manager') {
+if (user_can($currentUser, 'hasar_edit_all')) {
     $stmt = $pdo->query(
         "SELECT u.name, u.id, COUNT(df.id) AS file_count
          FROM users u
          LEFT JOIN damage_files df ON df.advisor_id = u.id AND df.status != 'tamamlandi'
-         WHERE u.role = 'advisor' AND u.is_active = 1
+         WHERE u.is_active = 1 AND (u.role = 'advisor' OR u.group_id IN (
+             SELECT id FROM user_groups WHERE code = 'hasar_danismani'
+         ))
          GROUP BY u.id
          ORDER BY file_count DESC"
     );
@@ -121,19 +126,19 @@ require __DIR__ . '/../includes/header.php';
             <?php if ($scope === 'mine'): ?> · yalnızca sizin dosyalarınız<?php endif; ?>
         </p>
     </div>
-    <?php if ($currentUser['role'] !== 'workshop'): ?>
+    <?php if (user_can($currentUser, 'hasar_create_file')): ?>
     <a href="/new-file.php" class="btn btn-primary">+ Yeni Dosya</a>
     <?php endif; ?>
 </div>
 
-<?php if ($currentUser['role'] === 'advisor'): ?>
+<?php if (user_can($currentUser, 'hasar_edit_own') && !user_can($currentUser, 'hasar_edit_all')): ?>
 <div class="scope-toggle">
     <a class="scope-link<?= $scope === 'mine' ? ' active' : '' ?>" href="/dashboard.php?scope=mine">Benim dosyalarım</a>
     <a class="scope-link<?= $scope === 'all' ? ' active' : '' ?>" href="/dashboard.php?scope=all">Tüm dosyalar</a>
 </div>
 <?php endif; ?>
 
-<?php if ($currentUser['role'] === 'manager' && $advisorWorkload): ?>
+<?php if (user_can($currentUser, 'hasar_edit_all') && $advisorWorkload): ?>
 <div class="workload-chips">
     <span class="workload-label">Danışman iş yükü</span>
     <?php foreach ($advisorWorkload as $aw): ?>
@@ -228,6 +233,7 @@ require __DIR__ . '/../includes/header.php';
 <?php ob_start(); ?>
 (function() {
     var userRole = <?= json_encode($currentUser['role']) ?>;
+    var statusLimited = <?= user_can($currentUser, 'hasar_status_limited') && !user_can($currentUser, 'hasar_status_all') ? 'true' : 'false' ?>;
     var dragged = null;
     var filter = 'all';
 
@@ -307,11 +313,11 @@ require __DIR__ . '/../includes/header.php';
             var fileId = dragged.dataset.id;
             if (newStatus === oldStatus) return;
 
-            if (userRole === 'workshop') {
+            if (statusLimited) {
                 var allowed = (oldStatus === 'onarimda' && newStatus === 'teslime_hazir') ||
                               (oldStatus === 'teslime_hazir' && newStatus === 'onarimda');
                 if (!allowed) {
-                    showToast('Atölye personeli yalnızca Onarımda ↔ Teslime Hazır geçişi yapabilir', 'error');
+                    showToast('Bu hesap yalnızca Onarımda ↔ Teslime Hazır geçişi yapabilir', 'error');
                     return;
                 }
             }

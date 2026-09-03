@@ -116,6 +116,12 @@ function ensure_schema_upgrades(PDO $pdo): void
     if (!$hasCover || !schema_column_exists($pdo, 'app_categories', 'form_field_code')) {
         run_migration_script($scripts . 'migrate_v14.php');
     }
+    if (!schema_table_exists($pdo, 'user_groups') || !schema_column_exists($pdo, 'users', 'group_id')) {
+        run_migration_script($scripts . 'migrate_v15.php');
+    }
+    if (!schema_table_exists($pdo, 'prim_sales') || !schema_table_exists($pdo, 'tour_slides')) {
+        run_migration_script($scripts . 'migrate_v16.php');
+    }
 }
 
 function db(): PDO
