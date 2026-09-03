@@ -49,6 +49,7 @@ $logs = $stmt->fetchAll();
 $pageTitle = $file['file_number'];
 $activeNav = 'dashboard';
 $categories = category_labels();
+$categoryDescriptions = category_descriptions();
 $statuses = status_labels();
 $insCompanies = insurance_companies(true);
 
@@ -203,6 +204,9 @@ require __DIR__ . '/../includes/header.php';
                 <div class="category-card small" data-category="<?= e($key) ?>">
                     <span class="cat-icon"><?= $icon ?></span>
                     <span class="cat-label"><?= e($label) ?></span>
+                    <?php if (!empty($categoryDescriptions[$key])): ?>
+                    <span class="cat-desc"><?= e($categoryDescriptions[$key]) ?></span>
+                    <?php endif; ?>
                     <input type="file" class="cat-input" multiple
                            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif">
                 </div>

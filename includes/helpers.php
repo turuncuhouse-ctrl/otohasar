@@ -189,6 +189,30 @@ function category_labels(): array
     return $cache;
 }
 
+/** Short descriptions under category labels (code => text). */
+function category_descriptions(): array
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $cache = [];
+    try {
+        $rows = db()->query(
+            'SELECT code, description FROM app_categories WHERE is_active = 1 ORDER BY sort_order, id'
+        )->fetchAll();
+        foreach ($rows as $r) {
+            $desc = trim((string) ($r['description'] ?? ''));
+            if ($desc !== '') {
+                $cache[$r['code']] = $desc;
+            }
+        }
+    } catch (Throwable $e) {
+        // column may not exist yet
+    }
+    return $cache;
+}
+
 function role_labels(): array
 {
     return [

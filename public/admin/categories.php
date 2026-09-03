@@ -20,6 +20,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
         $id = (int) ($_POST['id'] ?? 0);
         $label = trim($_POST['label'] ?? '');
         $code = trim($_POST['code'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        if (mb_strlen($description) > 255) {
+            $description = mb_substr($description, 0, 255);
+        }
         $sort = (int) ($_POST['sort_order'] ?? 0);
         $required = isset($_POST['is_required']) ? 1 : 0;
         $active = isset($_POST['is_active']) ? 1 : 0;
@@ -35,16 +39,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
                         $error = 'Kategori bulunamadı';
                     } else {
                         $pdo->prepare(
-                            'UPDATE app_categories SET label=?, sort_order=?, is_required=?, is_active=? WHERE id=?'
-                        )->execute([$label, $sort, $required, $active, $id]);
+                            'UPDATE app_categories SET label=?, description=?, sort_order=?, is_required=?, is_active=? WHERE id=?'
+                        )->execute([$label, $description !== '' ? $description : null, $sort, $required, $active, $id]);
                         $message = 'Kategori güncellendi';
                         $editId = $id;
                     }
                 } else {
                     $code = $code !== '' ? slugify_code($code) : slugify_code($label);
                     $pdo->prepare(
-                        'INSERT INTO app_categories (code, label, sort_order, is_required, is_active) VALUES (?,?,?,?,?)'
-                    )->execute([$code, $label, $sort, $required, $active]);
+                        'INSERT INTO app_categories (code, label, description, sort_order, is_required, is_active) VALUES (?,?,?,?,?,?)'
+                    )->execute([$code, $label, $description !== '' ? $description : null, $sort, $required, $active]);
                     $message = 'Yeni kategori eklendi';
                     $editId = 0;
                 }
@@ -153,6 +157,13 @@ require __DIR__ . '/../../includes/header.php';
         </div>
 
         <div class="form-group">
+            <label>Kısa açıklama</label>
+            <textarea class="form-input" name="description" rows="2" maxlength="255"
+                      placeholder="Kategori kartının altında görünecek kısa not"><?= e($edit['description'] ?? '') ?></textarea>
+            <p class="form-hint">Örn: “Ön-arka ve hasarlı bölge fotoğrafları”</p>
+        </div>
+
+        <div class="form-group">
             <label>Sıra (küçük sayı önce)</label>
             <input class="form-input" type="number" name="sort_order"
                    value="<?= (int)($edit['sort_order'] ?? $nextSort) ?>">
@@ -181,6 +192,7 @@ require __DIR__ . '/../../includes/header.php';
             <tr>
                 <th>Sıra</th>
                 <th>Kategori</th>
+                <th>Açıklama</th>
                 <th>Kod</th>
                 <th>Zorunlu</th>
                 <th>Aktif</th>
@@ -212,6 +224,7 @@ require __DIR__ . '/../../includes/header.php';
                     </div>
                 </td>
                 <td><?= e($r['label']) ?></td>
+                <td class="cat-desc-cell"><?= e($r['description'] ?? '') ?></td>
                 <td><code><?= e($r['code']) ?></code></td>
                 <td><?= !empty($r['is_required']) ? 'Evet' : 'Hayır' ?></td>
                 <td><?= !empty($r['is_active']) ? 'Evet' : 'Hayır' ?></td>
@@ -227,7 +240,7 @@ require __DIR__ . '/../../includes/header.php';
             </tr>
             <?php endforeach; ?>
             <?php if (!$rows): ?>
-            <tr><td colspan="6" class="empty-state">Henüz kategori yok. Soldan ekleyin.</td></tr>
+            <tr><td colspan="7" class="empty-state">Henüz kategori yok. Soldan ekleyin.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>

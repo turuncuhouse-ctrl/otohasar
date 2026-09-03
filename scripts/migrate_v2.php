@@ -85,6 +85,7 @@ if (!table_exists($pdo, 'app_categories')) {
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             code VARCHAR(50) NOT NULL UNIQUE,
             label VARCHAR(100) NOT NULL,
+            description VARCHAR(255) NULL DEFAULT NULL,
             sort_order INT NOT NULL DEFAULT 0,
             is_required TINYINT(1) NOT NULL DEFAULT 0,
             is_active TINYINT(1) NOT NULL DEFAULT 1,

@@ -20,6 +20,7 @@ portal_set_file($fileId, $plate, !empty($_SESSION['portal_via_token']));
 
 $statuses = status_labels();
 $categories = customer_upload_categories();
+$categoryDescriptions = category_descriptions();
 $formTypes = insurance_form_doc_types();
 $canUpload = is_customer_upload_granted($file);
 $statusLabel = $statuses[$file['status']] ?? $file['status'];
@@ -146,6 +147,9 @@ $pageTitle = $file['file_number'];
                 <div class="category-card small" data-category="<?= e($key) ?>">
                     <span class="cat-icon"><?= $icon ?></span>
                     <span class="cat-label"><?= e($label) ?></span>
+                    <?php if (!empty($categoryDescriptions[$key])): ?>
+                    <span class="cat-desc"><?= e($categoryDescriptions[$key]) ?></span>
+                    <?php endif; ?>
                     <input type="file" class="cat-input" multiple accept="<?= e($accept) ?>">
                 </div>
                 <?php endforeach; ?>
