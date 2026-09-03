@@ -872,6 +872,84 @@ function wa_customer_docs_message(
     ]);
 }
 
+function wa_custom_templates(bool $activeOnly = true): array
+{
+    try {
+        $sql = 'SELECT * FROM wa_templates';
+        if ($activeOnly) {
+            $sql .= ' WHERE is_active = 1';
+        }
+        $sql .= ' ORDER BY sort_order, id';
+        return db()->query($sql)->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function find_wa_template(int $id): ?array
+{
+    if ($id <= 0) {
+        return null;
+    }
+    try {
+        $stmt = db()->prepare('SELECT * FROM wa_templates WHERE id = ? LIMIT 1');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+/** Common placeholders for a damage file WhatsApp message. */
+function wa_file_template_vars(array $file, array $extra = []): array
+{
+    $status = (string) ($file['status'] ?? '');
+    $lines = [
+        'evrak_bekliyor' => 'evrak bekleniyor.',
+        'eksperde'       => 'ekspertiz sürecine alınmıştır.',
+        'parca_bekliyor' => 'parça bekleniyor.',
+        'onarimda'       => 'onarım durumuna geçmiştir.',
+        'teslime_hazir'  => 'teslime hazırdır, teslim alabilirsiniz.',
+        'tamamlandi'     => 'işlemleri tamamlanmıştır. İyi günler dileriz.',
+    ];
+    $name = trim((string) ($file['customer_name'] ?? ''));
+    if ($name === '') {
+        $name = 'Değerli müşterimiz';
+    }
+    $workOrderNo = trim((string) ($file['work_order_no'] ?? ''));
+    $hours = (int) ($extra['hours'] ?? 48);
+    $hoursLabel = $hours >= 24 && $hours % 24 === 0
+        ? ((int) ($hours / 24)) . ' gün'
+        : $hours . ' saat';
+    $note = trim((string) ($extra['note'] ?? ($file['customer_upload_note'] ?? '')));
+    $noteLine = $note !== '' ? "\nEksik evrak: " . $note : '';
+    $portalUrl = (string) ($extra['portal_url'] ?? customer_portal_url($file['plate'] ?? null));
+
+    return array_merge([
+        'name'            => $name,
+        'plate'           => format_plate_display((string) ($file['plate'] ?? '')),
+        'file_number'     => (string) ($file['file_number'] ?? ''),
+        'status'          => $status,
+        'status_text'     => $lines[$status] ?? ('durumu: ' . (status_labels()[$status] ?? $status)),
+        'status_label'    => status_labels()[$status] ?? $status,
+        'work_order_no'   => $workOrderNo,
+        'work_order_line' => $workOrderNo !== '' ? 'İş emri no: ' . $workOrderNo : '',
+        'portal_url'      => $portalUrl,
+        'hours'           => (string) $hours,
+        'hours_label'     => $hoursLabel,
+        'note'            => $note,
+        'note_line'       => $noteLine,
+        'insurance'       => (string) ($file['insurance_company'] ?? ''),
+        'phone'           => (string) ($file['customer_phone'] ?? ''),
+    ], $extra);
+}
+
+function wa_compose_message(string $body, array $file, array $extra = []): string
+{
+    return wa_render_template($body, wa_file_template_vars($file, $extra));
+}
+
 function wa_digits(?string $phone): ?string
 {
     $d = preg_replace('/\D+/', '', $phone ?? '') ?? '';

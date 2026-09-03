@@ -52,6 +52,7 @@ $categories = category_labels();
 $categoryDescriptions = category_descriptions();
 $statuses = status_labels();
 $insCompanies = insurance_companies(true);
+$waCustomTemplates = wa_custom_templates(true);
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -81,8 +82,19 @@ require __DIR__ . '/../includes/header.php';
             );
             if ($waUrl):
             ?>
-            <a class="btn btn-wa btn-wa-lg" href="<?= e($waUrl) ?>" target="_blank" rel="noopener"
-               data-file-id="<?= (int)$fileId ?>" data-status="<?= e($file['status']) ?>">WhatsApp ile bildir</a>
+            <div class="wa-compose" id="waCompose" data-file-id="<?= (int)$fileId ?>">
+                <select id="waTemplateSelect" class="form-input wa-template-select" aria-label="WhatsApp şablonu">
+                    <option value="status">Durum bildirimi</option>
+                    <option value="docs">Evrak yükleme daveti</option>
+                    <?php foreach ($waCustomTemplates as $wt): ?>
+                    <option value="custom:<?= (int)$wt['id'] ?>"><?= e($wt['title']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="button" class="btn btn-wa btn-wa-lg" id="waComposeBtn"
+                        data-file-id="<?= (int)$fileId ?>" data-status="<?= e($file['status']) ?>">
+                    WhatsApp Gönder
+                </button>
+            </div>
             <?php elseif ($currentUser['role'] !== 'workshop'): ?>
             <span class="wa-missing">Müşteri telefonu yok — WhatsApp gönderilemez</span>
             <?php endif; ?>
@@ -551,6 +563,37 @@ require __DIR__ . '/../includes/header.php';
                 showToast((err && err.error) || 'Hata', 'error');
             });
     });
+
+    var waBtn = document.getElementById('waComposeBtn');
+    var waSel = document.getElementById('waTemplateSelect');
+    if (waBtn && waSel) {
+        waBtn.addEventListener('click', function() {
+            var val = waSel.value || 'status';
+            var formData = new FormData();
+            formData.append('damage_file_id', fileId);
+            if (val.indexOf('custom:') === 0) {
+                formData.append('kind', 'custom');
+                formData.append('template_id', val.slice(7));
+            } else {
+                formData.append('kind', val);
+            }
+            waBtn.disabled = true;
+            apiFetch('/api/wa_compose.php', { method: 'POST', body: formData })
+                .then(function(data) {
+                    waBtn.disabled = false;
+                    if (data.whatsapp) {
+                        if (typeof logWhatsApp === 'function') {
+                            logWhatsApp(fileId, waBtn.dataset.status || '');
+                        }
+                        window.open(data.whatsapp, '_blank', 'noopener');
+                    }
+                })
+                .catch(function(err) {
+                    waBtn.disabled = false;
+                    showToast((err && err.error) || 'WhatsApp oluşturulamadı', 'error');
+                });
+        });
+    }
 })();
 <?php
 $pageScript = ob_get_clean();

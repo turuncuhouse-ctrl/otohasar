@@ -71,6 +71,14 @@ function ensure_schema_upgrades(PDO $pdo): void
     } catch (Throwable $e) {
         // categories table may not exist yet
     }
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM information_schema.TABLES
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+    );
+    $stmt->execute(['wa_templates']);
+    if ((int) $stmt->fetchColumn() === 0) {
+        run_migration_script($scripts . 'migrate_v11.php');
+    }
 }
 
 function db(): PDO

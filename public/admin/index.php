@@ -61,7 +61,7 @@ require __DIR__ . '/../../includes/header.php';
     </a>
     <a class="admin-card" href="/admin/whatsapp.php">
         <h2>WhatsApp Şablonları</h2>
-        <p>Durum ve evrak yükleme mesaj metinleri</p>
+        <p>Durum/evrak mesajları ve kendi WhatsApp şablonlarınız</p>
         <span class="admin-stat">Özelleştir</span>
     </a>
 </div>
