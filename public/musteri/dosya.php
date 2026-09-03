@@ -21,16 +21,15 @@ portal_set_file($fileId, $plate, !empty($_SESSION['portal_via_token']));
 $statuses = status_labels();
 $categories = customer_upload_categories();
 $categoryDescriptions = category_descriptions();
-$formTypes = insurance_form_doc_types();
 $canUpload = is_customer_upload_granted($file);
 $statusLabel = $statuses[$file['status']] ?? $file['status'];
 $statusColor = status_colors()[$file['status']] ?? 'status-slate';
 
 $insCompany = find_insurance_company_by_name($file['insurance_company'] ?? null);
 $templates = $insCompany ? insurance_templates_for_company((int) $insCompany['id']) : [];
-$templatesByType = [];
+$templateDocTypes = [];
 foreach ($templates as $tpl) {
-    $templatesByType[$tpl['doc_type']] = $tpl;
+    $templateDocTypes[$tpl['doc_type']] = true;
 }
 
 $stmt = db()->prepare(
@@ -87,7 +86,7 @@ $pageTitle = $file['file_number'];
         <?php endif; ?>
 
         <section class="ins-template-section">
-            <h3>Kasko formları (Taahhüt / Teslim / İbra / Temlik)</h3>
+            <h3>Kasko formları</h3>
             <?php if (!$insCompany): ?>
             <p class="empty-state">Bu dosyada anlaşmalı kasko şirketi tanımlı değil.</p>
             <?php elseif (!$templates): ?>
@@ -95,12 +94,9 @@ $pageTitle = $file['file_number'];
             <?php else: ?>
             <p class="portal-sub">Yalnızca <strong><?= e($insCompany['name']) ?></strong> formlarını indirip imzalayarak geri yükleyebilirsiniz.</p>
             <div class="ins-template-grid">
-                <?php foreach ($formTypes as $type => $label):
-                    $tpl = $templatesByType[$type] ?? null;
-                    if (!$tpl) continue;
-                ?>
+                <?php foreach ($templates as $tpl): ?>
                 <div class="ins-template-card">
-                    <strong><?= e($tpl['title'] ?: $label) ?></strong>
+                    <strong><?= e($tpl['title']) ?></strong>
                     <span class="text-muted"><?= e($tpl['original_name']) ?></span>
                     <div class="ins-template-actions">
                         <a class="btn btn-secondary btn-sm"
@@ -112,7 +108,7 @@ $pageTitle = $file['file_number'];
                             İmzalı yükle
                             <input type="file" class="upload-picker-input ins-signed-input"
                                    accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
-                                   data-category="<?= e($type) ?>">
+                                   data-category="<?= e($tpl['doc_type']) ?>">
                         </label>
                         <?php endif; ?>
                     </div>
@@ -136,7 +132,7 @@ $pageTitle = $file['file_number'];
             <h3>Evrak / fotoğraf yükle</h3>
             <div class="category-grid compact" id="uploadCategoryGrid">
                 <?php foreach ($categories as $key => $label):
-                    if (isset($formTypes[$key])) continue;
+                    if (isset($templateDocTypes[$key])) continue;
                     $icon = match($key) {
                         'ruhsat' => '📄', 'ehliyet' => '🪪', 'tutanak' => '📋',
                         'hasar_foto' => '📸', 'ekspertiz' => '🔍', 'diger' => '📁',
@@ -185,7 +181,7 @@ $pageTitle = $file['file_number'];
                     <?php endif; ?>
                 </a>
                 <div class="doc-info">
-                    <span class="doc-cat"><?= e($categories[$doc['category']] ?? category_labels()[$doc['category']] ?? $doc['category']) ?></span>
+                    <span class="doc-cat"><?= e(document_category_label((string)$doc['category'])) ?></span>
                     <span class="doc-name"><?= e($doc['original_name']) ?></span>
                     <span class="doc-meta"><?= e($doc['uploader_name']) ?> · <?= date('d.m.Y H:i', strtotime($doc['uploaded_at'])) ?></span>
                 </div>

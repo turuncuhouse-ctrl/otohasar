@@ -249,12 +249,73 @@ function insurance_companies(bool $activeOnly = true): array
 
 function insurance_form_doc_types(): array
 {
+    // Suggested titles only — templates are free-form per company
     return [
         'taahhut' => 'Taahhüt',
         'teslim'  => 'Teslim',
         'ibra'    => 'İbra',
         'temlik'  => 'Temlik',
+        'birlesik' => 'Taahhüt + Teslim + İbra (tek PDF)',
     ];
+}
+
+function unique_insurance_doc_type(PDO $pdo, int $companyId, string $title, ?int $excludeId = null): string
+{
+    $base = slugify_code($title);
+    if ($base === '' || preg_match('/^item_/', $base)) {
+        $base = 'form';
+    }
+    $code = $base;
+    $n = 2;
+    while (true) {
+        $sql = 'SELECT id FROM insurance_doc_templates WHERE insurance_company_id = ? AND doc_type = ?';
+        $params = [$companyId, $code];
+        if ($excludeId) {
+            $sql .= ' AND id != ?';
+            $params[] = $excludeId;
+        }
+        $sql .= ' LIMIT 1';
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        if (!$stmt->fetch()) {
+            return $code;
+        }
+        $code = $base . '_' . $n;
+        $n++;
+        if ($n > 50) {
+            return $base . '_' . bin2hex(random_bytes(2));
+        }
+    }
+}
+
+function company_template_doc_types(int $companyId): array
+{
+    $types = [];
+    foreach (insurance_templates_for_company($companyId) as $tpl) {
+        $types[$tpl['doc_type']] = $tpl['title'] ?: $tpl['doc_type'];
+    }
+    return $types;
+}
+
+function document_category_label(string $code): string
+{
+    $labels = category_labels();
+    if (isset($labels[$code])) {
+        return $labels[$code];
+    }
+    try {
+        $stmt = db()->prepare(
+            'SELECT title FROM insurance_doc_templates WHERE doc_type = ? AND is_active = 1 ORDER BY id DESC LIMIT 1'
+        );
+        $stmt->execute([$code]);
+        $title = $stmt->fetchColumn();
+        if ($title) {
+            return (string) $title;
+        }
+    } catch (Throwable $e) {
+    }
+    $suggested = insurance_form_doc_types();
+    return $suggested[$code] ?? $code;
 }
 
 function find_insurance_company_by_name(?string $name): ?array
@@ -299,7 +360,7 @@ function insurance_templates_for_company(int $companyId, bool $activeOnly = true
         if ($activeOnly) {
             $sql .= ' AND is_active = 1';
         }
-        $sql .= ' ORDER BY FIELD(doc_type, \'taahhut\', \'teslim\', \'ibra\', \'temlik\'), id';
+        $sql .= ' ORDER BY title, id';
         $stmt = db()->prepare($sql);
         $stmt->execute([$companyId]);
         return $stmt->fetchAll();

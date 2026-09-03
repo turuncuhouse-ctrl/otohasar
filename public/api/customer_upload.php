@@ -16,11 +16,6 @@ if (!portal_kvkk_accepted()) {
 $fileId   = (int) ($_POST['damage_file_id'] ?? 0);
 $category = $_POST['category'] ?? '';
 
-$allowed = customer_upload_categories();
-if (!isset($allowed[$category])) {
-    json_error('Geçersiz kategori');
-}
-
 $file = find_portal_file($fileId, $plate);
 if (!$file) {
     json_error('Dosya bulunamadı', 404);
@@ -30,23 +25,13 @@ if (!is_customer_upload_granted($file)) {
     json_error('Yükleme izniniz yok veya süresi dolmuş. Lütfen servisinizle iletişime geçin.', 403);
 }
 
-$formTypes = insurance_form_doc_types();
-if (isset($formTypes[$category])) {
-    $company = find_insurance_company_by_name($file['insurance_company'] ?? null);
-    if (!$company) {
-        json_error('Bu dosyada kasko şirketi tanımlı değil', 403);
-    }
-    $companyTemplates = insurance_templates_for_company((int) $company['id']);
-    $hasType = false;
-    foreach ($companyTemplates as $tpl) {
-        if ($tpl['doc_type'] === $category) {
-            $hasType = true;
-            break;
-        }
-    }
-    if (!$hasType) {
-        json_error('Bu kasko şirketi için ' . $formTypes[$category] . ' şablonu yok', 403);
-    }
+$allowed = customer_upload_categories();
+$company = find_insurance_company_by_name($file['insurance_company'] ?? null);
+$templateLabels = $company ? company_template_doc_types((int) $company['id']) : [];
+$isTemplateCat = isset($templateLabels[$category]);
+
+if (!isset($allowed[$category]) && !$isTemplateCat) {
+    json_error('Geçersiz kategori');
 }
 
 $incoming = normalize_uploaded_files($_FILES['files'] ?? []);
@@ -87,11 +72,11 @@ foreach ($incoming as $item) {
         continue;
     }
 
-    $validated = isset($formTypes[$category])
+    $validated = $isTemplateCat
         ? validate_document_mime($tmpPath, $origName)
         : validate_upload_mime($tmpPath, $origName);
     if (!$validated) {
-        $errors[] = isset($formTypes[$category])
+        $errors[] = $isTemplateCat
             ? (($origName !== '' ? $origName . ': ' : '') . 'Geçersiz dosya (JPEG, PNG, WebP veya PDF)')
             : upload_validation_error($tmpPath, $origName);
         continue;
@@ -122,7 +107,7 @@ foreach ($incoming as $item) {
 }
 
 if (!empty($uploaded)) {
-    $catLabel = $allowed[$category];
+    $catLabel = $templateLabels[$category] ?? ($allowed[$category] ?? document_category_label($category));
     $count = count($uploaded);
     $logUserId = (int) ($file['customer_upload_granted_by'] ?: $file['advisor_id']);
     add_file_log($pdo, $fileId, $logUserId, "Müşteri $count evrak yükledi ($catLabel)");

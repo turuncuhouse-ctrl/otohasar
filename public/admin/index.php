@@ -56,7 +56,7 @@ require __DIR__ . '/../../includes/header.php';
     </a>
     <a class="admin-card" href="/admin/insurance.php">
         <h2>Sigorta Şirketleri</h2>
-        <p>Anlaşmalı şirketler, işçilik/parça iskontosu ve Taahhüt–Teslim–İbra–Temlik PDF şablonları</p>
+        <p>Anlaşmalı şirketler, işçilik/parça iskontosu ve serbest başlıklı form PDF şablonları</p>
         <span class="admin-stat"><?= $insCount ?> aktif</span>
     </a>
     <a class="admin-card" href="/admin/whatsapp.php">

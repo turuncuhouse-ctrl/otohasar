@@ -235,7 +235,7 @@ require __DIR__ . '/../includes/header.php';
                     <img src="/<?= e($doc['file_path']) ?>" alt="<?= e($doc['original_name']) ?>" loading="lazy">
                 </a>
                 <div class="doc-info">
-                    <span class="doc-cat"><?= e($categories[$doc['category']] ?? $doc['category']) ?></span>
+                    <span class="doc-cat"><?= e(document_category_label((string)$doc['category'])) ?></span>
                     <span class="doc-name"><?= e($doc['original_name']) ?></span>
                     <span class="doc-meta"><?= e($doc['uploader_name']) ?> · <?= date('d.m.Y H:i', strtotime($doc['uploaded_at'])) ?></span>
                 </div>
