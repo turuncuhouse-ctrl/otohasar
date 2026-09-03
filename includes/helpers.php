@@ -135,6 +135,25 @@ function status_colors(): array
     return $cache;
 }
 
+/** Available status color classes for admin palette. */
+function status_color_palette(): array
+{
+    return [
+        'status-amber'  => 'Amber',
+        'status-orange' => 'Turuncu',
+        'status-rose'   => 'Gül',
+        'status-violet' => 'Mor',
+        'status-indigo' => 'Indigo',
+        'status-blue'   => 'Mavi',
+        'status-cyan'   => 'Camgöbeği',
+        'status-teal'   => 'Turkuaz',
+        'status-green'  => 'Yeşil',
+        'status-lime'   => 'Lime',
+        'status-slate'  => 'Gri',
+        'status-zinc'   => 'Koyu gri',
+    ];
+}
+
 function category_labels(): array
 {
     static $cache = null;
