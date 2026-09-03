@@ -61,6 +61,7 @@ php /var/www/scripts/migrate_v9.php || true
 php /var/www/scripts/migrate_v10.php || true
 php /var/www/scripts/migrate_v11.php || true
 php /var/www/scripts/migrate_v12.php || true
+php /var/www/scripts/migrate_v13.php || true
 
 # ZIP extension for document downloads (required)
 ensure_zip() {

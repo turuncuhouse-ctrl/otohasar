@@ -58,6 +58,10 @@ require __DIR__ . '/../includes/header.php';
                 <label for="chassis_no">Şasi No</label>
                 <input type="text" id="chassis_no" name="chassis_no" class="form-input">
             </div>
+            <div class="form-group">
+                <label for="odometer_km">KM</label>
+                <input type="number" id="odometer_km" name="odometer_km" class="form-input" min="0" max="9999999" step="1" placeholder="Örn: 85600">
+            </div>
             <hr class="form-divider">
             <div class="form-group">
                 <label for="customer_name">Müşteri Adı *</label>
@@ -251,6 +255,7 @@ $pageScript = <<<'JS'
                     document.getElementById('year').value = v.year || '';
                     document.getElementById('color').value = v.color || '';
                     document.getElementById('chassis_no').value = v.chassis_no || '';
+                    document.getElementById('odometer_km').value = v.odometer_km || '';
                     document.getElementById('customer_name').value = v.customer_name || '';
                     document.getElementById('customer_phone').value = v.customer_phone || '';
                     document.getElementById('customer_address').value = v.customer_address || '';

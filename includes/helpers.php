@@ -344,6 +344,31 @@ function format_vehicle_location(?string $value): string
     return vehicle_location_labels()[$value ?? ''] ?? '—';
 }
 
+function parse_odometer_km(mixed $raw): ?int
+{
+    $raw = trim(str_replace(['.', ',', ' ', 'km', 'KM'], '', (string) $raw));
+    if ($raw === '' || !ctype_digit($raw)) {
+        return null;
+    }
+    $n = (int) $raw;
+    if ($n < 0 || $n > 9999999) {
+        return null;
+    }
+    return $n;
+}
+
+function format_odometer_km(mixed $value): string
+{
+    if ($value === null || $value === '') {
+        return '—';
+    }
+    $n = (int) $value;
+    if ($n <= 0) {
+        return '—';
+    }
+    return number_format($n, 0, ',', '.') . ' km';
+}
+
 function unique_insurance_doc_type(PDO $pdo, int $companyId, string $title, ?int $excludeId = null): string
 {
     $base = slugify_code($title);

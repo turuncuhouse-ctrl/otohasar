@@ -11,7 +11,7 @@ if (strlen($q) < 2) {
 
 $pdo = db();
 $stmt = $pdo->prepare(
-    'SELECT v.plate, v.brand, v.model, v.year, v.color, v.chassis_no,
+    'SELECT v.plate, v.brand, v.model, v.year, v.color, v.chassis_no, v.odometer_km,
             c.name AS customer_name, c.phone AS customer_phone, c.tc_vkn, c.address AS customer_address
      FROM vehicles v
      JOIN customers c ON c.id = v.customer_id

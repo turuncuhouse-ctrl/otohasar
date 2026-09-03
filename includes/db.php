@@ -83,6 +83,9 @@ function ensure_schema_upgrades(PDO $pdo): void
         || !schema_column_exists($pdo, 'damage_files', 'vehicle_location')) {
         run_migration_script($scripts . 'migrate_v12.php');
     }
+    if (!schema_column_exists($pdo, 'vehicles', 'odometer_km')) {
+        run_migration_script($scripts . 'migrate_v13.php');
+    }
 }
 
 function db(): PDO

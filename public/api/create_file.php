@@ -11,6 +11,7 @@ $model          = trim($_POST['model'] ?? '');
 $year           = (int) ($_POST['year'] ?? 0);
 $color          = trim($_POST['color'] ?? '');
 $chassisNo      = trim($_POST['chassis_no'] ?? '');
+$odometerKm     = parse_odometer_km($_POST['odometer_km'] ?? null);
 $customerName   = trim($_POST['customer_name'] ?? '');
 $customerPhone  = trim($_POST['customer_phone'] ?? '');
 $customerAddress = trim($_POST['customer_address'] ?? '');
@@ -53,12 +54,13 @@ try {
         $customerId = (int) $stmt->fetchColumn();
         $stmt = $pdo->prepare('UPDATE customers SET name = ?, phone = ?, address = ? WHERE id = ?');
         $stmt->execute([$customerName, $customerPhone, $customerAddress, $customerId]);
-        if ($brand !== '' || $model !== '' || $year || $color !== '' || $chassisNo !== '') {
+        if ($brand !== '' || $model !== '' || $year || $color !== '' || $chassisNo !== '' || $odometerKm !== null) {
             $stmt = $pdo->prepare(
                 'UPDATE vehicles SET brand = COALESCE(NULLIF(?, ""), brand), model = COALESCE(NULLIF(?, ""), model),
-                 year = COALESCE(?, year), color = COALESCE(NULLIF(?, ""), color), chassis_no = COALESCE(NULLIF(?, ""), chassis_no) WHERE id = ?'
+                 year = COALESCE(?, year), color = COALESCE(NULLIF(?, ""), color), chassis_no = COALESCE(NULLIF(?, ""), chassis_no),
+                 odometer_km = COALESCE(?, odometer_km) WHERE id = ?'
             );
-            $stmt->execute([$brand, $model, $year ?: null, $color, $chassisNo, $vehicleId]);
+            $stmt->execute([$brand, $model, $year ?: null, $color, $chassisNo, $odometerKm, $vehicleId]);
         }
     } else {
         $customerId = null;
@@ -80,7 +82,7 @@ try {
         }
 
         $stmt = $pdo->prepare(
-            'INSERT INTO vehicles (customer_id, plate, chassis_no, brand, model, year, color) VALUES (?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO vehicles (customer_id, plate, chassis_no, brand, model, year, color, odometer_km) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $customerId,
@@ -90,6 +92,7 @@ try {
             $model !== '' ? $model : '-',
             $year ?: null,
             $color ?: null,
+            $odometerKm,
         ]);
         $vehicleId = (int) $pdo->lastInsertId();
     }

@@ -12,7 +12,7 @@ if ($fileId <= 0) {
 
 $pdo = db();
 $stmt = $pdo->prepare(
-    'SELECT df.*, v.plate, v.brand, v.model, v.year, v.color, v.chassis_no,
+    'SELECT df.*, v.plate, v.brand, v.model, v.year, v.color, v.chassis_no, v.odometer_km,
             c.name AS customer_name, c.phone AS customer_phone, c.tc_vkn, c.email AS customer_email, c.address AS customer_address,
             u.name AS advisor_name
      FROM damage_files df
@@ -295,6 +295,7 @@ require __DIR__ . '/../includes/header.php';
                         <div class="form-group"><label>Renk</label><input class="form-input" name="color" value="<?= e($file['color'] ?? '') ?>"></div>
                     </div>
                     <div class="form-group"><label>Şasi No</label><input class="form-input" name="chassis_no" value="<?= e($file['chassis_no'] ?? '') ?>"></div>
+                    <div class="form-group"><label>KM</label><input class="form-input" type="number" name="odometer_km" min="0" max="9999999" step="1" value="<?= e((string)($file['odometer_km'] ?? '')) ?>" placeholder="Örn: 85600"></div>
                 </div>
                 <div class="info-section">
                     <h3>Müşteri</h3>
@@ -396,6 +397,7 @@ require __DIR__ . '/../includes/header.php';
                     <dt>Yıl</dt><dd><?= e((string)($file['year'] ?? '-')) ?></dd>
                     <dt>Renk</dt><dd><?= e($file['color'] ?? '-') ?></dd>
                     <dt>Şasi No</dt><dd><?= e($file['chassis_no'] ?? '-') ?></dd>
+                    <dt>KM</dt><dd><?= e(format_odometer_km($file['odometer_km'] ?? null)) ?></dd>
                 </dl>
             </div>
             <div class="info-section">

@@ -19,6 +19,7 @@ $model     = trim($_POST['model'] ?? '');
 $year      = (int) ($_POST['year'] ?? 0);
 $color     = trim($_POST['color'] ?? '');
 $chassisNo = trim($_POST['chassis_no'] ?? '');
+$odometerKm = parse_odometer_km($_POST['odometer_km'] ?? null);
 
 $workOrderNo = trim($_POST['work_order_no'] ?? '');
 $insuranceCo = trim($_POST['insurance_company'] ?? '');
@@ -98,7 +99,7 @@ try {
     ]);
 
     $stmt = $pdo->prepare(
-        'UPDATE vehicles SET plate = ?, brand = ?, model = ?, year = ?, color = ?, chassis_no = ? WHERE id = ?'
+        'UPDATE vehicles SET plate = ?, brand = ?, model = ?, year = ?, color = ?, chassis_no = ?, odometer_km = ? WHERE id = ?'
     );
     $stmt->execute([
         $plate,
@@ -107,6 +108,7 @@ try {
         $year > 0 ? $year : null,
         $color !== '' ? $color : null,
         $chassisNo !== '' ? $chassisNo : null,
+        $odometerKm,
         $vehicleId,
     ]);
 
