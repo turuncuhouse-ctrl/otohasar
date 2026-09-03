@@ -133,18 +133,18 @@ body {
 
 .stat-grid {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: .35rem;
-    margin-bottom: 1rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .5rem;
+    margin-bottom: 1.25rem;
 }
 .stat-card {
     background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 8px;
-    padding: .45rem .3rem .4rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: .85rem .5rem .75rem;
     text-align: center;
     cursor: pointer;
-    min-height: 0;
+    min-height: 78px;
     transition: border-color .15s, box-shadow .15s, transform .15s;
     position: relative;
     overflow: hidden;
@@ -153,22 +153,14 @@ body {
     content: '';
     position: absolute;
     left: 0; right: 0; top: 0;
-    height: 3px;
+    height: 4px;
     background: var(--navy);
-    border-radius: 8px 8px 0 0;
+    border-radius: var(--radius) var(--radius) 0 0;
 }
 .stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
 .stat-card.active { box-shadow: 0 0 0 2px rgba(15, 23, 42, .12); }
-.stat-num { display: block; font-size: 1.05rem; font-weight: 800; line-height: 1.15; color: var(--navy); }
-.stat-label {
-    display: block;
-    font-size: .6rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    margin-top: .15rem;
-    line-height: 1.2;
-    word-break: break-word;
-}
+.stat-num { display: block; font-size: 1.4rem; font-weight: 800; line-height: 1.2; color: var(--navy); }
+.stat-label { display: block; font-size: .6875rem; font-weight: 700; color: var(--text-muted); margin-top: .25rem; }
 
 /* Toplam */
 .stat-card.stat-total::before { background: var(--navy); }
@@ -1627,7 +1619,7 @@ body {
 
 /* Responsive */
 @media (max-width: 900px) {
-    .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .3rem; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
@@ -1698,8 +1690,6 @@ body {
 }
 
 @media (max-width: 420px) {
-    .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .stat-num { font-size: .95rem; }
-    .stat-label { font-size: .55rem; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
     .plate-num { font-size: .75rem; }
 }
