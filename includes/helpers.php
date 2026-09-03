@@ -369,6 +369,53 @@ function format_odometer_km(mixed $value): string
     return number_format($n, 0, ',', '.') . ' km';
 }
 
+function form_plain(?string $value): string
+{
+    $value = trim((string) $value);
+    if ($value === '' || $value === '—') {
+        return '';
+    }
+    return $value;
+}
+
+function form_date_dmy(?string $value): string
+{
+    if ($value === null || $value === '' || $value === '0000-00-00') {
+        return '';
+    }
+    $ts = strtotime($value);
+    return $ts ? date('d.m.Y', $ts) : '';
+}
+
+function form_km_plain(mixed $value): string
+{
+    if ($value === null || $value === '') {
+        return '';
+    }
+    $n = (int) $value;
+    return $n > 0 ? (string) $n : '';
+}
+
+function intake_form_uploaded_categories(int $fileId): array
+{
+    try {
+        $stmt = db()->prepare(
+            'SELECT DISTINCT category FROM file_documents WHERE damage_file_id = ?'
+        );
+        $stmt->execute([$fileId]);
+        $codes = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $code = (string) ($row['category'] ?? '');
+            if ($code !== '') {
+                $codes[$code] = true;
+            }
+        }
+        return $codes;
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
 function unique_insurance_doc_type(PDO $pdo, int $companyId, string $title, ?int $excludeId = null): string
 {
     $base = slugify_code($title);

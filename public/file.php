@@ -101,6 +101,8 @@ require __DIR__ . '/../includes/header.php';
             <?php elseif ($currentUser['role'] !== 'workshop'): ?>
             <span class="wa-missing">Müşteri telefonu yok — WhatsApp gönderilemez</span>
             <?php endif; ?>
+            <a class="btn <?= ($file['status'] ?? '') === 'tamamlandi' ? 'btn-primary' : 'btn-ghost' ?>"
+               href="/file_form.php?id=<?= (int)$fileId ?>">Kapak Formu</a>
             <a class="btn btn-primary" href="/api/download_zip.php?file_id=<?= (int)$fileId ?>">Evrakları ZIP İndir</a>
             <a class="btn btn-ghost" href="/api/download_zip.php?plate=<?= urlencode($file['plate']) ?>">Plaka klasör ZIP</a>
         </div>

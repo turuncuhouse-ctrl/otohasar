@@ -53,6 +53,8 @@ jobs:
             grep -q uploadNext "$APP/public/assets/js/app.js"
             grep -q prepareImageForUpload "$APP/public/assets/js/app.js"
             grep -q 'cat-input" multiple' "$APP/public/file.php"
+            test -f "$APP/public/file_form.php"
+            grep -q 'Kapak Formu' "$APP/public/file.php"
 
             cd "$APP"
             chmod +x scripts/*.sh

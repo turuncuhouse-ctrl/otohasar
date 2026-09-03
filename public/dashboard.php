@@ -103,6 +103,9 @@ function render_file_row(array $card): string
         . '</div></a>'
         . '<div class="file-row-actions">' . $wa
         . '<a class="btn btn-sm btn-ghost" href="/file.php?id=' . (int)$card['id'] . '">Aç</a>'
+        . (($card['status'] ?? '') === 'tamamlandi'
+            ? '<a class="btn btn-sm btn-ghost" href="/file_form.php?id=' . (int)$card['id'] . '">Form</a>'
+            : '')
         . '</div></article>';
 }
 
@@ -212,6 +215,9 @@ require __DIR__ . '/../includes/header.php';
                     <div class="card-advisor"><?= e($card['advisor_name']) ?></div>
                 </a>
                 <?= wa_button_html($card['customer_phone'] ?? null, $card['customer_name'], $card['plate'], $card['file_number'], $card['status'], (int)$card['id']) ?>
+                <?php if (($card['status'] ?? '') === 'tamamlandi'): ?>
+                <a class="btn btn-sm btn-ghost" href="/file_form.php?id=<?= (int)$card['id'] ?>">Form</a>
+                <?php endif; ?>
             </div>
             <?php endforeach; ?>
         </div>
