@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../../includes/auth.php';
 
 $currentUser = require_auth();
 require_perm($currentUser, 'access_prim');
@@ -117,7 +117,7 @@ if ($sale && isset($sale['sale_at'])) {
     $saleAtVal = date('Y-m-d\TH:i', strtotime((string) $sale['sale_at']) ?: time());
 }
 
-require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="page-header">
@@ -173,4 +173,4 @@ require __DIR__ . '/../includes/header.php';
     <button class="btn btn-primary btn-block" type="submit">Kaydet</button>
 </form>
 
-<?php require __DIR__ . '/../includes/footer.php'; ?>
+<?php require __DIR__ . '/../../includes/footer.php'; ?>

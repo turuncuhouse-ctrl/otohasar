@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../../includes/auth.php';
 
 $currentUser = require_auth();
 require_perm($currentUser, 'access_prim');
@@ -51,7 +51,7 @@ $sales = $stmt->fetchAll();
 
 $ctxLabels = ['kabul' => 'Kabul', 'teslim' => 'Teslim', 'diger' => 'Diğer'];
 
-require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="page-header">
@@ -116,4 +116,4 @@ require __DIR__ . '/../includes/header.php';
     </table>
 </div>
 
-<?php require __DIR__ . '/../includes/footer.php'; ?>
+<?php require __DIR__ . '/../../includes/footer.php'; ?>
