@@ -86,6 +86,15 @@ function ensure_schema_upgrades(PDO $pdo): void
     if (!schema_column_exists($pdo, 'vehicles', 'odometer_km')) {
         run_migration_script($scripts . 'migrate_v13.php');
     }
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM information_schema.TABLES
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+    );
+    $stmt->execute(['cover_form_fields']);
+    $hasCover = (int) $stmt->fetchColumn() > 0;
+    if (!$hasCover || !schema_column_exists($pdo, 'app_categories', 'form_field_code')) {
+        run_migration_script($scripts . 'migrate_v14.php');
+    }
 }
 
 function db(): PDO

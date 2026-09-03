@@ -8,6 +8,30 @@ function e(?string $value): string
     return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+function flash_set(string $kind, string $message): void
+{
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    $_SESSION['_flash'] = ['kind' => $kind, 'message' => $message];
+}
+
+function flash_take(): ?array
+{
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    $flash = $_SESSION['_flash'] ?? null;
+    unset($_SESSION['_flash']);
+    return is_array($flash) ? $flash : null;
+}
+
+function admin_redirect(string $path): void
+{
+    header('Location: ' . $path);
+    exit;
+}
+
 /** Format datetime for UI: 02.09.2026 23:15 */
 function format_datetime_tr(?string $value): string
 {
@@ -414,6 +438,162 @@ function intake_form_uploaded_categories(int $fileId): array
     } catch (Throwable $e) {
         return [];
     }
+}
+
+function cover_form_sections(): array
+{
+    return [
+        'header_left'  => 'Üst sol (bilgi satırları)',
+        'header_right' => 'Üst sağ (bilgi satırları)',
+        'checks_left'  => 'Sol evrak kutuları',
+        'damage'       => 'Hasar bilgileri',
+        'checks_right' => 'Sağ onay kutuları',
+        'footer'       => 'Alt bilgi / notlar',
+    ];
+}
+
+function cover_form_kinds(): array
+{
+    return [
+        'text'  => 'Yazı alanı',
+        'check' => 'Onay kutusu',
+        'notes' => 'Not kutusu',
+    ];
+}
+
+function cover_form_data_sources(): array
+{
+    return [
+        ''                    => '— Doldurulmaz (elle yazılır)',
+        'customer_name'       => 'Sigortalı / müşteri adı',
+        'plate'               => 'Plaka',
+        'created_at'          => 'Geliş / dosya açılış tarihi',
+        'insurance_company'   => 'Sigorta şirketi',
+        'policy_no'           => 'Poliçe no',
+        'file_number'         => 'Dosya no',
+        'claim_no'            => 'Hasar no',
+        'work_order_no'       => 'İş emri no',
+        'customer_phone'      => 'Telefon',
+        'tc_vkn'              => 'TC / VKN',
+        'customer_email'      => 'E-posta',
+        'odometer_km'         => 'KM',
+        'damage_date'         => 'Hasar tarihi',
+        'damage_time'         => 'Hasar saati',
+        'damage_type'         => 'Hasar şekli',
+        'damage_place'        => 'Hasar yeri',
+        'note'                => 'Dosya notu',
+        'advisor_name'        => 'Danışman adı',
+        'vehicle_musteride'   => 'Araç müşterideyse işaretle',
+        'vehicle_serviste'    => 'Araç servisteyse işaretle',
+    ];
+}
+
+function cover_form_fields(bool $activeOnly = true): array
+{
+    try {
+        $sql = 'SELECT * FROM cover_form_fields';
+        if ($activeOnly) {
+            $sql .= ' WHERE is_active = 1';
+        }
+        $sql .= " ORDER BY FIELD(section,'header_left','header_right','checks_left','damage','checks_right','footer'), sort_order, id";
+        return db()->query($sql)->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function cover_form_grouped(bool $activeOnly = true): array
+{
+    $grouped = [];
+    foreach (array_keys(cover_form_sections()) as $section) {
+        $grouped[$section] = [];
+    }
+    foreach (cover_form_fields($activeOnly) as $row) {
+        $section = (string) ($row['section'] ?? '');
+        if (!isset($grouped[$section])) {
+            $grouped[$section] = [];
+        }
+        $grouped[$section][] = $row;
+    }
+    return $grouped;
+}
+
+function cover_form_check_options(bool $activeOnly = true): array
+{
+    $out = [];
+    foreach (cover_form_fields($activeOnly) as $row) {
+        if (($row['kind'] ?? '') === 'check') {
+            $out[(string) $row['code']] = (string) $row['label'];
+        }
+    }
+    return $out;
+}
+
+function cover_form_category_map(): array
+{
+    try {
+        $rows = db()->query(
+            "SELECT code, form_field_code FROM app_categories
+             WHERE form_field_code IS NOT NULL AND form_field_code != ''"
+        )->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+    $map = [];
+    foreach ($rows as $row) {
+        $field = (string) ($row['form_field_code'] ?? '');
+        $code = (string) ($row['code'] ?? '');
+        if ($field === '' || $code === '') {
+            continue;
+        }
+        $map[$field][] = $code;
+    }
+    return $map;
+}
+
+function cover_form_resolve_value(array $file, string $dataKey): string
+{
+    return match ($dataKey) {
+        'customer_name'     => form_plain($file['customer_name'] ?? null),
+        'plate'             => form_plain($file['plate'] ?? null),
+        'created_at'        => form_date_dmy($file['created_at'] ?? null),
+        'insurance_company' => form_plain($file['insurance_company'] ?? null),
+        'policy_no'         => form_plain($file['policy_no'] ?? null),
+        'file_number'       => form_plain($file['file_number'] ?? null),
+        'claim_no'          => form_plain($file['claim_no'] ?? null),
+        'work_order_no'     => form_plain($file['work_order_no'] ?? null),
+        'customer_phone'    => form_plain($file['customer_phone'] ?? null),
+        'tc_vkn'            => form_plain($file['tc_vkn'] ?? null),
+        'customer_email'    => form_plain($file['customer_email'] ?? null),
+        'odometer_km'       => form_km_plain($file['odometer_km'] ?? null),
+        'damage_date'       => form_date_dmy($file['damage_date'] ?? null),
+        'damage_time'       => form_plain(format_damage_time($file['damage_time'] ?? null) === '—'
+            ? ''
+            : format_damage_time($file['damage_time'] ?? null)),
+        'damage_type'       => form_plain($file['damage_type'] ?? null),
+        'damage_place'      => form_plain($file['damage_place'] ?? null),
+        'note'              => form_plain($file['note'] ?? null),
+        'advisor_name'      => form_plain($file['advisor_name'] ?? null),
+        default             => '',
+    };
+}
+
+function cover_form_is_checked(array $field, array $file, array $uploaded, array $catsByField): bool
+{
+    $dataKey = (string) ($field['data_key'] ?? '');
+    if ($dataKey === 'vehicle_musteride' && ($file['vehicle_location'] ?? '') === 'musteride') {
+        return true;
+    }
+    if ($dataKey === 'vehicle_serviste' && ($file['vehicle_location'] ?? '') === 'serviste') {
+        return true;
+    }
+    $fieldCode = (string) ($field['code'] ?? '');
+    foreach ($catsByField[$fieldCode] ?? [] as $cat) {
+        if (isset($uploaded[$cat])) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function unique_insurance_doc_type(PDO $pdo, int $companyId, string $title, ?int $excludeId = null): string

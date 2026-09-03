@@ -51,8 +51,13 @@ require __DIR__ . '/../../includes/header.php';
     </a>
     <a class="admin-card" href="/admin/categories.php">
         <h2>Evrak Kategorileri</h2>
-        <p>İstenen evrak türlerini belirleyin</p>
+        <p>İstenen evrak türlerini belirleyin ve kapak formuna bağlayın</p>
         <span class="admin-stat"><?= $catCount ?> kategori</span>
+    </a>
+    <a class="admin-card" href="/admin/cover_form.php">
+        <h2>Kapak Formu</h2>
+        <p>Yazdırılan forma alan ekleyin, çıkarın ve düzenleyin</p>
+        <span class="admin-stat">Özelleştir</span>
     </a>
     <a class="admin-card" href="/admin/insurance.php">
         <h2>Sigorta Şirketleri</h2>

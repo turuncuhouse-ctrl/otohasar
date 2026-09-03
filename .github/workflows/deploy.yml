@@ -55,6 +55,8 @@ jobs:
             grep -q 'cat-input" multiple' "$APP/public/file.php"
             test -f "$APP/public/file_form.php"
             grep -q 'Kapak Formu' "$APP/public/file.php"
+            test -f "$APP/public/file_form.php"
+            test -f "$APP/public/admin/cover_form.php"
 
             cd "$APP"
             chmod +x scripts/*.sh
