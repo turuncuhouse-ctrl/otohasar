@@ -91,6 +91,15 @@ foreach ($incoming as $item) {
         continue;
     }
 
+    if (($validated['mime'] ?? '') !== 'application/pdf') {
+        $stored = recompress_stored_image($destPath, $validated);
+        $destPath = $stored['path'];
+        $validated = ['mime' => $stored['mime'], 'ext' => $stored['ext']];
+        $size = (int) $stored['size'];
+        $filename = basename($destPath);
+        $relativePath = 'uploads/' . $fileId . '/' . $filename;
+    }
+
     $stmt = $pdo->prepare(
         'INSERT INTO file_documents (damage_file_id, category, file_path, original_name, mime_type, file_size, uploaded_by)
          VALUES (?, ?, ?, ?, ?, ?, NULL)'

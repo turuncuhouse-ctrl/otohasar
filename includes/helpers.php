@@ -654,6 +654,117 @@ function validate_upload_mime(string $tmpPath, string $originalName): ?array
     return ['mime' => $storedMime, 'ext' => $ext];
 }
 
+function recompress_stored_image(string $path, array $validated): array
+{
+    $validated['path'] = $path;
+    $validated['size'] = is_file($path) ? (int) filesize($path) : 0;
+
+    $mime = $validated['mime'] ?? '';
+    if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+        return $validated;
+    }
+    if (!function_exists('imagecreatetruecolor') || !function_exists('imagejpeg')) {
+        return $validated;
+    }
+
+    $info = @getimagesize($path);
+    if (!is_array($info) || empty($info[0]) || empty($info[1])) {
+        return $validated;
+    }
+
+    $w = (int) $info[0];
+    $h = (int) $info[1];
+    $size = $validated['size'];
+    $maxEdge = 1920;
+    $needsResize = $w > $maxEdge || $h > $maxEdge;
+    $needsShrink = $size > (int) (2.4 * 1024 * 1024);
+    if (!$needsResize && !$needsShrink) {
+        return $validated;
+    }
+    if ($w < 1 || $h < 1 || ($w * $h) > 24000000) {
+        return $validated;
+    }
+
+    $src = null;
+    if ($mime === 'image/jpeg' && function_exists('imagecreatefromjpeg')) {
+        $src = @imagecreatefromjpeg($path);
+    } elseif ($mime === 'image/png' && function_exists('imagecreatefrompng')) {
+        $src = @imagecreatefrompng($path);
+    } elseif ($mime === 'image/webp' && function_exists('imagecreatefromwebp')) {
+        $src = @imagecreatefromwebp($path);
+    }
+    if (!$src) {
+        return $validated;
+    }
+
+    $scale = min($maxEdge / $w, $maxEdge / $h, 1.0);
+    $tw = max(1, (int) round($w * $scale));
+    $th = max(1, (int) round($h * $scale));
+
+    $dst = imagecreatetruecolor($tw, $th);
+    if ($dst === false) {
+        imagedestroy($src);
+        return $validated;
+    }
+    $white = imagecolorallocate($dst, 255, 255, 255);
+    imagefilledrectangle($dst, 0, 0, $tw, $th, $white);
+    imagecopyresampled($dst, $src, 0, 0, 0, 0, $tw, $th, $w, $h);
+    imagedestroy($src);
+
+    $tmpOut = $path . '.opt.jpg';
+    $ok = @imagejpeg($dst, $tmpOut, 82);
+    imagedestroy($dst);
+    if (!$ok || !is_file($tmpOut)) {
+        @unlink($tmpOut);
+        return $validated;
+    }
+
+    $newSize = (int) filesize($tmpOut);
+    if ($newSize <= 0 || ($newSize >= $size && !$needsResize)) {
+        @unlink($tmpOut);
+        return $validated;
+    }
+
+    $newPath = $path;
+    $ext = strtolower((string) pathinfo($path, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg', 'jpeg'], true)) {
+        $renamed = preg_replace('/\.[a-z0-9]+$/i', '.jpg', $path);
+        $newPath = is_string($renamed) && $renamed !== '' ? $renamed : ($path . '.jpg');
+    }
+
+    if ($newPath === $path) {
+        $backup = $path . '.bak';
+        if (!@rename($path, $backup)) {
+            @unlink($tmpOut);
+            return $validated;
+        }
+        if (!@rename($tmpOut, $path)) {
+            @rename($backup, $path);
+            @unlink($tmpOut);
+            return $validated;
+        }
+        @unlink($backup);
+    } else {
+        if (!@rename($tmpOut, $newPath)) {
+            @unlink($tmpOut);
+            return $validated;
+        }
+        @unlink($path);
+    }
+
+    $finalSize = is_file($newPath) ? (int) filesize($newPath) : 0;
+    if ($finalSize <= 0) {
+        return $validated;
+    }
+
+    return [
+        'mime' => 'image/jpeg',
+        'ext'  => 'jpg',
+        'path' => $newPath,
+        'size' => $finalSize,
+    ];
+}
+
 function upload_validation_error(string $tmpPath, string $originalName): string
 {
     $finfo = finfo_open(FILEINFO_MIME_TYPE);

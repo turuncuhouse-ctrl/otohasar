@@ -1,4 +1,4 @@
-const CACHE_NAME = 'otohasar-shell-v32';
+const CACHE_NAME = 'otohasar-shell-v33';
 const SHELL_ASSETS = [
     '/assets/icons/icon-192.png',
     '/assets/icons/icon-512.png',
