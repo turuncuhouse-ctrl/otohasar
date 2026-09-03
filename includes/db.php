@@ -131,6 +131,9 @@ function ensure_schema_upgrades(PDO $pdo): void
     if (!migration_applied($pdo, 'v19_tour_pro')) {
         run_migration_script($scripts . 'migrate_v19.php');
     }
+    if (!schema_table_exists($pdo, 'prim_target_products') || !migration_applied($pdo, 'v20_prim_target_products')) {
+        run_migration_script($scripts . 'migrate_v20.php');
+    }
 }
 
 function db(): PDO

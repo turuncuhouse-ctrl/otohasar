@@ -468,6 +468,34 @@ function prim_is_enabled(): bool
     return prim_setting('prim_enabled', '1') === '1';
 }
 
+function prim_commission_mode_labels(): array
+{
+    return [
+        'pct' => 'Yüzde (%) — satış tutarının yüzdesi',
+        'fixed' => 'Sabit tutar — her adet için sabit TL',
+        'inherit' => 'Genelden al — Genel sekmesindeki oran/sabit',
+    ];
+}
+
+function prim_commission_mode_short(string $mode): string
+{
+    return match ($mode) {
+        'pct' => 'Yüzde',
+        'fixed' => 'Sabit tutar',
+        'inherit' => 'Genelden al',
+        default => $mode,
+    };
+}
+
+function prim_metric_labels(): array
+{
+    return [
+        'amount' => 'Satış tutarı (TL)',
+        'quantity' => 'Satılan adet',
+        'sales_count' => 'Satış kaydı sayısı',
+    ];
+}
+
 function prim_products(bool $activeOnly = true): array
 {
     try {
@@ -582,9 +610,54 @@ function prim_targets(bool $activeOnly = true): array
             $sql .= ' WHERE t.is_active = 1';
         }
         $sql .= ' ORDER BY t.period_end DESC, t.id DESC';
-        return db()->query($sql)->fetchAll();
+        $rows = db()->query($sql)->fetchAll();
+        foreach ($rows as &$row) {
+            $row['_product_ids'] = prim_target_product_ids((int) $row['id']);
+            $row['_product_names'] = prim_target_product_names((int) $row['id']);
+        }
+        unset($row);
+        return $rows;
     } catch (Throwable $e) {
         return [];
+    }
+}
+
+function prim_target_product_ids(int $targetId): array
+{
+    try {
+        $stmt = db()->prepare('SELECT product_id FROM prim_target_products WHERE target_id = ?');
+        $stmt->execute([$targetId]);
+        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function prim_target_product_names(int $targetId): array
+{
+    try {
+        $stmt = db()->prepare(
+            'SELECT p.name FROM prim_target_products tp
+             JOIN prim_products p ON p.id = tp.product_id
+             WHERE tp.target_id = ?
+             ORDER BY p.sort_order, p.name'
+        );
+        $stmt->execute([$targetId]);
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function set_prim_target_products(int $targetId, array $productIds): void
+{
+    $pdo = db();
+    $pdo->prepare('DELETE FROM prim_target_products WHERE target_id = ?')->execute([$targetId]);
+    $ins = $pdo->prepare('INSERT INTO prim_target_products (target_id, product_id) VALUES (?,?)');
+    foreach (array_unique(array_map('intval', $productIds)) as $pid) {
+        if ($pid > 0) {
+            $ins->execute([$targetId, $pid]);
+        }
     }
 }
 
@@ -606,6 +679,7 @@ function prim_period_progress(array $target): array
     $end = $target['period_end'];
     $metric = $target['metric'] ?? 'amount';
     $scope = $target['scope'] ?? 'user';
+    $productIds = $target['_product_ids'] ?? prim_target_product_ids((int) $target['id']);
 
     $select = match ($metric) {
         'quantity' => 'COALESCE(SUM(quantity),0)',
@@ -613,19 +687,22 @@ function prim_period_progress(array $target): array
         default => 'COALESCE(SUM(amount),0)',
     };
 
+    $where = 'sale_at >= ? AND sale_at < DATE_ADD(?, INTERVAL 1 DAY)';
+    $params = [$start, $end];
     if ($scope === 'user' && !empty($target['user_id'])) {
-        $stmt = $pdo->prepare(
-            "SELECT {$select} FROM prim_sales
-             WHERE sold_by = ? AND sale_at >= ? AND sale_at < DATE_ADD(?, INTERVAL 1 DAY)"
-        );
-        $stmt->execute([(int) $target['user_id'], $start, $end]);
-    } else {
-        $stmt = $pdo->prepare(
-            "SELECT {$select} FROM prim_sales
-             WHERE sale_at >= ? AND sale_at < DATE_ADD(?, INTERVAL 1 DAY)"
-        );
-        $stmt->execute([$start, $end]);
+        $where .= ' AND sold_by = ?';
+        $params[] = (int) $target['user_id'];
     }
+    if ($productIds) {
+        $ph = implode(',', array_fill(0, count($productIds), '?'));
+        $where .= " AND product_id IN ($ph)";
+        foreach ($productIds as $pid) {
+            $params[] = $pid;
+        }
+    }
+
+    $stmt = $pdo->prepare("SELECT {$select} FROM prim_sales WHERE {$where}");
+    $stmt->execute($params);
     $actual = (float) $stmt->fetchColumn();
     $goal = (float) ($target['target_value'] ?? 0);
     $pct = $goal > 0 ? round($actual / $goal * 100, 2) : 0.0;

@@ -147,7 +147,10 @@ require __DIR__ . '/../../includes/header.php';
             <div class="prim-target-bar"><span style="width:<?= min(100, (float)$p['pct']) ?>%"></span></div>
             <div class="prim-target-meta">
                 <?= e(number_format((float)$p['actual'], 0, ',', '.')) ?> / <?= e(number_format((float)$p['goal'], 0, ',', '.')) ?>
-                · <?= e(number_format((float)$p['pct'], 1, ',', '.')) ?>%
+                        · <?= e(number_format((float)$p['pct'], 1, ',', '.')) ?>%
+                        <?php if (!empty($t['_product_names'])): ?>
+                        · <?= e(implode(', ', $t['_product_names'])) ?>
+                        <?php endif; ?>
                 <?php if ($canAmounts && $p['bonus'] > 0): ?>
                 · Bonus <?= e(format_money_tr((float)$p['bonus'])) ?>
                 <?php if (!empty($p['tier_label'])): ?> (<?= e($p['tier_label']) ?>)<?php endif; ?>

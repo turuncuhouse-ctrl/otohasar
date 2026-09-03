@@ -150,6 +150,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $insTier->execute([$targetId, $minV, $bonV, $lab ?: null, (int) $i * 10]);
                     }
                 }
+
+                $productIds = array_map('intval', $_POST['product_ids'] ?? []);
+                set_prim_target_products($targetId, $productIds);
             }
             $tab = 'hedefler';
         } elseif ($action === 'delete_target') {
@@ -216,7 +219,7 @@ require __DIR__ . '/../../includes/header.php';
 
 <div class="prim-tabs">
     <a class="prim-tab<?= $tab === 'genel' ? ' active' : '' ?>" href="/admin/prim.php?tab=genel">Genel</a>
-    <a class="prim-tab<?= $tab === 'urunler' ? ' active' : '' ?>" href="/admin/prim.php?tab=urunler">Ürün / SPIFF</a>
+    <a class="prim-tab<?= $tab === 'urunler' ? ' active' : '' ?>" href="/admin/prim.php?tab=urunler">Ürün / Ek teşvik</a>
     <a class="prim-tab<?= $tab === 'hedefler' ? ' active' : '' ?>" href="/admin/prim.php?tab=hedefler">Hedefler</a>
 </div>
 
@@ -228,7 +231,7 @@ require __DIR__ . '/../../includes/header.php';
     <p class="form-hint">Bayilerde sık görülen yapı: ürün satışı primi + dönem hedef bonusu. Aşağıdaki “varsayılan” oran, ürün seçilmediğinde veya ürün modu “genelden miras” olduğunda kullanılır.</p>
 
     <label class="check-row"><input type="checkbox" name="prim_enabled" <?= $enabled ? 'checked' : '' ?>> Prim sistemi açık</label>
-    <label class="check-row"><input type="checkbox" name="prim_include_spiff" <?= $includeSpiff ? 'checked' : '' ?>> Ürün SPIFF tutarını ekle</label>
+    <label class="check-row"><input type="checkbox" name="prim_include_spiff" <?= $includeSpiff ? 'checked' : '' ?>> Ürün ek teşvik tutarını (adet başı ekstra TL) ekle</label>
     <label class="check-row"><input type="checkbox" name="prim_stack_target_bonus" <?= $stackTarget ? 'checked' : '' ?>> Hedef bonusunu satış primine ek olarak göster</label>
 
     <div class="form-group">
@@ -279,8 +282,13 @@ require __DIR__ . '/../../includes/header.php';
         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
         <input type="hidden" name="action" value="save_product">
         <?php if ($editProduct): ?><input type="hidden" name="id" value="<?= (int)$editProduct['id'] ?>"><?php endif; ?>
-        <h2><?= $editProduct ? 'Ürün düzenle' : 'Ürün / SPIFF ekle' ?></h2>
-        <p class="form-hint">Örn. cam filmi %10, lastikte adet başı sabit, seramikte ek SPIFF. Servis danışmanı satışta ürün seçer.</p>
+        <h2><?= $editProduct ? 'Ürün düzenle' : 'Ürün / ek teşvik ekle' ?></h2>
+        <p class="form-hint">
+            <strong>Yüzde:</strong> satış tutarının %’si &nbsp;·&nbsp;
+            <strong>Sabit tutar:</strong> her adet için sabit TL &nbsp;·&nbsp;
+            <strong>Genelden al:</strong> Genel sekmesindeki oran &nbsp;·&nbsp;
+            <strong>Ek teşvik:</strong> bunlara ek, adet başı ekstra TL (eski adıyla SPIFF)
+        </p>
         <div class="form-group"><label>Ad</label><input class="form-input" name="name" required value="<?= e($editProduct['name'] ?? '') ?>"></div>
         <div class="form-row">
             <div class="form-group"><label>Kod</label><input class="form-input" name="code" value="<?= e($editProduct['code'] ?? '') ?>" placeholder="CAM_FILM"></div>
@@ -289,15 +297,15 @@ require __DIR__ . '/../../includes/header.php';
         <div class="form-group">
             <label>Komisyon tipi</label>
             <select class="form-input" name="commission_mode">
-                <?php foreach (['pct' => 'Yüzde (%)', 'fixed' => 'Adet başı sabit TL', 'inherit' => 'Genel orandan miras'] as $k => $lab): ?>
+                <?php foreach (prim_commission_mode_labels() as $k => $lab): ?>
                 <option value="<?= e($k) ?>" <?= ($editProduct['commission_mode'] ?? 'pct') === $k ? 'selected' : '' ?>><?= e($lab) ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>%</label><input class="form-input" name="rate_pct" value="<?= e((string)($editProduct['rate_pct'] ?? '0')) ?>"></div>
-            <div class="form-group"><label>Sabit TL</label><input class="form-input" name="fixed_amount" value="<?= e((string)($editProduct['fixed_amount'] ?? '0')) ?>"></div>
-            <div class="form-group"><label>SPIFF TL/adet</label><input class="form-input" name="spiff_amount" value="<?= e((string)($editProduct['spiff_amount'] ?? '0')) ?>"></div>
+            <div class="form-group"><label>Yüzde değeri (%)</label><input class="form-input" name="rate_pct" value="<?= e((string)($editProduct['rate_pct'] ?? '0')) ?>"></div>
+            <div class="form-group"><label>Sabit tutar (TL / adet)</label><input class="form-input" name="fixed_amount" value="<?= e((string)($editProduct['fixed_amount'] ?? '0')) ?>"></div>
+            <div class="form-group"><label>Ek teşvik (TL / adet)</label><input class="form-input" name="spiff_amount" value="<?= e((string)($editProduct['spiff_amount'] ?? '0')) ?>"></div>
         </div>
         <div class="form-group"><label>Sıra</label><input class="form-input" type="number" name="sort_order" value="<?= (int)($editProduct['sort_order'] ?? 0) ?>"></div>
         <div class="form-group"><label>Not</label><textarea class="form-input" name="note" rows="2"><?= e($editProduct['note'] ?? '') ?></textarea></div>
@@ -308,7 +316,7 @@ require __DIR__ . '/../../includes/header.php';
 
     <div class="admin-table-wrap">
         <table class="report-table">
-            <thead><tr><th>Ürün</th><th>Tip</th><th>Oran</th><th>SPIFF</th><th></th></tr></thead>
+            <thead><tr><th>Ürün</th><th>Komisyon tipi</th><th>Oran</th><th>Ek teşvik</th><th></th></tr></thead>
             <tbody>
             <?php foreach ($products as $p): ?>
             <tr>
@@ -317,11 +325,11 @@ require __DIR__ . '/../../includes/header.php';
                     <?php if ($p['category']): ?><br><span class="muted"><?= e($p['category']) ?></span><?php endif; ?>
                     <?= empty($p['is_active']) ? ' <em>(pasif)</em>' : '' ?>
                 </td>
-                <td><?= e($p['commission_mode']) ?></td>
+                <td><?= e(prim_commission_mode_short((string)$p['commission_mode'])) ?></td>
                 <td>
                     <?php if ($p['commission_mode'] === 'pct'): ?>%<?= e(rtrim(rtrim((string)$p['rate_pct'], '0'), '.')) ?>
                     <?php elseif ($p['commission_mode'] === 'fixed'): ?><?= e(format_money_tr((float)$p['fixed_amount'])) ?>
-                    <?php else: ?>genel<?php endif; ?>
+                    <?php else: ?>Genel ayar<?php endif; ?>
                 </td>
                 <td><?= (float)$p['spiff_amount'] > 0 ? e(format_money_tr((float)$p['spiff_amount'])) : '—' ?></td>
                 <td class="table-actions">
@@ -348,19 +356,19 @@ require __DIR__ . '/../../includes/header.php';
         <input type="hidden" name="action" value="save_target">
         <?php if ($editTarget): ?><input type="hidden" name="id" value="<?= (int)$editTarget['id'] ?>"><?php endif; ?>
         <h2><?= $editTarget ? 'Hedef düzenle' : 'Hedef tanımla' ?></h2>
-        <p class="form-hint">Bireysel kota veya ekip hedefi. Kademeler: %80 / %100 / %120 gibi eşiklerde farklı bonus (otomotivde yaygın).</p>
-        <div class="form-group"><label>Ad</label><input class="form-input" name="name" required value="<?= e($editTarget['name'] ?? '') ?>" placeholder="Mart bireysel satış"></div>
+        <p class="form-hint">Kişiye bireysel hedef koyun; isteğe bağlı olarak yalnızca seçili ürünlerdeki satışlar sayılsın. Hiç ürün seçmezseniz tüm satışlar dahildir.</p>
+        <div class="form-group"><label>Ad</label><input class="form-input" name="name" required value="<?= e($editTarget['name'] ?? '') ?>" placeholder="Ahmet — cam filmi Mart hedefi"></div>
         <div class="form-group">
             <label>Kapsam</label>
             <select class="form-input" name="scope" id="targetScope">
-                <option value="user" <?= ($editTarget['scope'] ?? 'user') === 'user' ? 'selected' : '' ?>>Bireysel</option>
+                <option value="user" <?= ($editTarget['scope'] ?? 'user') === 'user' ? 'selected' : '' ?>>Bireysel (kişiye özel)</option>
                 <option value="team" <?= ($editTarget['scope'] ?? '') === 'team' ? 'selected' : '' ?>>Ekip</option>
             </select>
         </div>
         <div class="form-group" id="targetUserWrap">
             <label>Kullanıcı</label>
             <select class="form-input" name="user_id">
-                <option value="">—</option>
+                <option value="">— Kişi seçin —</option>
                 <?php foreach ($users as $u): ?>
                 <option value="<?= (int)$u['id'] ?>" <?= (int)($editTarget['user_id'] ?? 0) === (int)$u['id'] ? 'selected' : '' ?>><?= e($u['name']) ?></option>
                 <?php endforeach; ?>
@@ -370,6 +378,27 @@ require __DIR__ . '/../../includes/header.php';
             <label>Ekip adı</label>
             <input class="form-input" name="team_label" value="<?= e($editTarget['team_label'] ?? 'Servis Ekibi') ?>">
         </div>
+        <?php
+        $editProductIds = $editTarget ? ($editTarget['_product_ids'] ?? prim_target_product_ids((int)$editTarget['id'])) : [];
+        $activeProducts = prim_products(true);
+        ?>
+        <div class="form-group">
+            <label>Hedefe dahil ürünler</label>
+            <p class="form-hint" style="margin-top:0">İşaretlenen ürünlerdeki satışlar hedefe yazılır. Boş bırakılırsa tüm ürünler / serbest satışlar sayılır.</p>
+            <div class="perm-section" style="max-height:220px;overflow:auto">
+                <?php if (!$activeProducts): ?>
+                <p class="muted">Önce Ürün sekmesinden ürün ekleyin.</p>
+                <?php else: ?>
+                <?php foreach ($activeProducts as $ap): ?>
+                <label class="check-row">
+                    <input type="checkbox" name="product_ids[]" value="<?= (int)$ap['id'] ?>"
+                        <?= in_array((int)$ap['id'], $editProductIds, true) ? 'checked' : '' ?>>
+                    <?= e($ap['name']) ?><?= $ap['category'] ? ' · ' . e($ap['category']) : '' ?>
+                </label>
+                <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+        </div>
         <div class="form-row">
             <div class="form-group"><label>Başlangıç</label><input class="form-input" type="date" name="period_start" required value="<?= e($editTarget['period_start'] ?? date('Y-m-01')) ?>"></div>
             <div class="form-group"><label>Bitiş</label><input class="form-input" type="date" name="period_end" required value="<?= e($editTarget['period_end'] ?? date('Y-m-t')) ?>"></div>
@@ -378,9 +407,9 @@ require __DIR__ . '/../../includes/header.php';
             <div class="form-group">
                 <label>Metrik</label>
                 <select class="form-input" name="metric">
-                    <option value="amount" <?= ($editTarget['metric'] ?? '') === 'amount' ? 'selected' : '' ?>>Satış tutarı (TL)</option>
-                    <option value="quantity" <?= ($editTarget['metric'] ?? '') === 'quantity' ? 'selected' : '' ?>>Satılan adet</option>
-                    <option value="sales_count" <?= ($editTarget['metric'] ?? '') === 'sales_count' ? 'selected' : '' ?>>Satış kaydı sayısı</option>
+                    <?php foreach (prim_metric_labels() as $mk => $mlab): ?>
+                    <option value="<?= e($mk) ?>" <?= ($editTarget['metric'] ?? 'amount') === $mk ? 'selected' : '' ?>><?= e($mlab) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="form-group"><label>Hedef değeri</label><input class="form-input" name="target_value" required value="<?= e((string)($editTarget['target_value'] ?? '')) ?>"></div>
@@ -427,7 +456,12 @@ require __DIR__ . '/../../includes/header.php';
                 <td>
                     <strong><?= e($t['name']) ?></strong>
                     <?= empty($t['is_active']) ? ' <em>(pasif)</em>' : '' ?>
-                    <br><span class="muted">Hedef: <?= e((string)$t['target_value']) ?> (<?= e($t['metric']) ?>)</span>
+                    <br><span class="muted">Hedef: <?= e((string)$t['target_value']) ?> · <?= e(prim_metric_labels()[$t['metric']] ?? $t['metric']) ?></span>
+                    <?php if (!empty($t['_product_names'])): ?>
+                    <br><span class="muted">Ürün: <?= e(implode(', ', $t['_product_names'])) ?></span>
+                    <?php else: ?>
+                    <br><span class="muted">Ürün: Tümü</span>
+                    <?php endif; ?>
                 </td>
                 <td>
                     <?php if ($t['scope'] === 'team'): ?>
