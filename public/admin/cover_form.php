@@ -61,6 +61,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
                     $active,
                     $id,
                 ]);
+                $codeStmt = $pdo->prepare('SELECT code FROM cover_form_fields WHERE id = ?');
+                $codeStmt->execute([$id]);
+                $savedCode = (string) $codeStmt->fetchColumn();
+                if ($kind === 'check' && $savedCode !== '') {
+                    set_form_field_categories($pdo, $savedCode, posted_category_codes());
+                }
                 flash_set('success', 'Form alanı güncellendi');
                 admin_redirect('/admin/cover_form.php?edit=' . $id);
             }
@@ -83,6 +89,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
                 $sort,
                 $active,
             ]);
+            if ($kind === 'check') {
+                set_form_field_categories($pdo, $code, posted_category_codes());
+            }
             flash_set('success', 'Yeni form alanı eklendi');
             admin_redirect('/admin/cover_form.php');
         } catch (Throwable $e) {
@@ -135,6 +144,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
             flash_set('error', 'Silinemedi, alan pasife alındı.');
         }
         admin_redirect('/admin/cover_form.php');
+    } elseif ($action === 'map_cats') {
+        $fieldCode = trim($_POST['field_code'] ?? '');
+        $codes = posted_category_codes();
+        $stmt = $pdo->prepare('SELECT code, label, kind FROM cover_form_fields WHERE code = ?');
+        $stmt->execute([$fieldCode]);
+        $field = $stmt->fetch();
+        if (!$field || ($field['kind'] ?? '') !== 'check') {
+            flash_set('error', 'Onay kutusu bulunamadı');
+            admin_redirect('/admin/cover_form.php');
+        }
+        set_form_field_categories($pdo, $fieldCode, $codes);
+        flash_set('success', $field['label'] . ' evrak kategorisine bağlandı');
+        admin_redirect('/admin/cover_form.php');
     }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     flash_set('error', 'CSRF hatası');
@@ -156,6 +178,8 @@ foreach ($rows as $r) {
 }
 $isEdit = $edit !== null;
 $showPreview = isset($_GET['preview']);
+$catOptions = all_category_options();
+$catsByField = cover_form_category_map();
 
 $nextSort = 10;
 if (!$isEdit) {
@@ -247,7 +271,15 @@ require __DIR__ . '/../../includes/header.php';
                 <option value="<?= e($k) ?>" <?= $srcSel === $k ? 'selected' : '' ?>><?= e($lab) ?></option>
                 <?php endforeach; ?>
             </select>
-            <p class="form-hint">Onay kutusu için “Araç müşterideyse işaretle” seçilebilir. Evrakla işaretleme kategori bağından gelir.</p>
+            <p class="form-hint">Onay kutusu için “Araç müşterideyse işaretle” seçilebilir. Evrakla işaretleme aşağıdaki kategorilerden gelir.</p>
+        </div>
+
+        <div class="form-group">
+            <label>Evrak yükleme kategorisi</label>
+            <select class="form-input map-select" name="category_codes[]" multiple size="8">
+                <?= html_category_map_options($isEdit ? ($catsByField[$edit['code']] ?? []) : []) ?>
+            </select>
+            <p class="form-hint">Sol evrak kutuları (RAPOR ASLI, RUHSAT…) için yükleme kategorisini buradan veya sağ listedeki eşleştirme kutusundan seçin. Ctrl ile birden fazla seçilir.</p>
         </div>
 
         <?php if (!$isEdit): ?>
@@ -296,8 +328,7 @@ require __DIR__ . '/../../includes/header.php';
             <tr>
                 <th>Sıra</th>
                 <th>Alan</th>
-                <th>Tür</th>
-                <th>Veri</th>
+                <th>Evrak kategorisi</th>
                 <th>Aktif</th>
                 <th></th>
             </tr>
@@ -326,9 +357,22 @@ require __DIR__ . '/../../includes/header.php';
                         </form>
                     </div>
                 </td>
-                <td><?= e($r['label']) ?><div class="cat-desc-cell"><code><?= e($r['code']) ?></code></div></td>
-                <td><?= e($kinds[$r['kind']] ?? $r['kind']) ?></td>
-                <td><?= e($sources[$r['data_key'] ?? ''] ?? '—') ?></td>
+                <td><?= e($r['label']) ?><div class="cat-desc-cell"><?= e($kinds[$r['kind']] ?? $r['kind']) ?></div></td>
+                <td class="map-cell">
+                    <?php if (($r['kind'] ?? '') === 'check'): ?>
+                    <form method="post">
+                        <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+                        <input type="hidden" name="action" value="map_cats">
+                        <input type="hidden" name="field_code" value="<?= e($r['code']) ?>">
+                        <select class="form-input map-select" name="category_codes[]" multiple size="5">
+                            <?= html_category_map_options($catsByField[$r['code']] ?? []) ?>
+                        </select>
+                        <button class="btn btn-sm btn-primary" type="submit" style="margin-top:.35rem">Eşleştir</button>
+                    </form>
+                    <?php else: ?>
+                    <span class="text-muted">—</span>
+                    <?php endif; ?>
+                </td>
                 <td><?= !empty($r['is_active']) ? 'Evet' : 'Hayır' ?></td>
                 <td class="table-actions">
                     <a class="btn btn-sm btn-primary" href="?edit=<?= (int)$r['id'] ?>">Düzenle</a>
@@ -342,7 +386,7 @@ require __DIR__ . '/../../includes/header.php';
             </tr>
             <?php endforeach; ?>
             <?php if (!$list): ?>
-            <tr><td colspan="6" class="empty-state">Bu bölümde alan yok.</td></tr>
+            <tr><td colspan="5" class="empty-state">Bu bölümde alan yok.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>

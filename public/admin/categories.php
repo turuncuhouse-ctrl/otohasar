@@ -154,6 +154,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? null)
             flash_set('error', 'Silme yapılamadı, kategori pasife alındı.');
         }
         admin_redirect('/admin/categories.php');
+    } elseif ($action === 'map') {
+        $id = (int) ($_POST['id'] ?? 0);
+        $formField = trim($_POST['form_field_code'] ?? '');
+        if ($formField !== '' && !isset($checkOptions[$formField])) {
+            $formField = '';
+        }
+        if (!$hasFormMap) {
+            flash_set('error', 'Form eşleştirmesi henüz hazır değil. Sayfayı yenileyin.');
+            admin_redirect('/admin/categories.php');
+        }
+        $stmt = $pdo->prepare('SELECT id, label FROM app_categories WHERE id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            flash_set('error', 'Kategori bulunamadı');
+            admin_redirect('/admin/categories.php');
+        }
+        $pdo->prepare('UPDATE app_categories SET form_field_code = ? WHERE id = ?')->execute([
+            $formField !== '' ? $formField : null,
+            $id,
+        ]);
+        flash_set('success', $row['label'] . ' forma bağlandı');
+        admin_redirect('/admin/categories.php');
     }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     flash_set('error', 'CSRF hatası');
@@ -233,17 +256,13 @@ require __DIR__ . '/../../includes/header.php';
 
         <div class="form-group">
             <label>Kapak formunda işaretle</label>
+            <?php $selectedField = (string) ($edit['form_field_code'] ?? ''); ?>
             <select class="form-input" name="form_field_code">
-                <option value="">— Bağlı değil —</option>
-                <?php
-                $selectedField = (string) ($edit['form_field_code'] ?? '');
-                foreach ($checkOptions as $fCode => $fLabel):
-                ?>
-                <option value="<?= e($fCode) ?>" <?= $selectedField === $fCode ? 'selected' : '' ?>>
-                    <?= e($fLabel) ?>
-                </option>
-                <?php endforeach; ?>
+                <?= html_cover_form_check_options($selectedField) ?>
             </select>
+            <?php if (!$checkOptions): ?>
+            <p class="form-hint">Form kutuları yüklenemedi. <a href="/admin/cover_form.php">Kapak formu</a> sayfasını açıp yenileyin.</p>
+            <?php endif; ?>
             <p class="form-hint">Bu kategoriye evrak yüklenince formdaki kutu işaretlenir. Yeni kutu eklemek için Kapak formu sayfasını kullanın.</p>
         </div>
 
@@ -312,7 +331,20 @@ require __DIR__ . '/../../includes/header.php';
                     <div class="cat-desc-cell"><?= e($r['description']) ?></div>
                     <?php endif; ?>
                 </td>
-                <td><?= e($checkOptions[$r['form_field_code'] ?? ''] ?? '—') ?></td>
+                <td class="map-cell">
+                    <?php if ($hasFormMap): ?>
+                    <form method="post" class="inline-form">
+                        <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+                        <input type="hidden" name="action" value="map">
+                        <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
+                        <select class="form-input map-select" name="form_field_code" onchange="this.form.submit()">
+                            <?= html_cover_form_check_options((string) ($r['form_field_code'] ?? '')) ?>
+                        </select>
+                    </form>
+                    <?php else: ?>
+                    —
+                    <?php endif; ?>
+                </td>
                 <td><code><?= e($r['code']) ?></code></td>
                 <td><?= !empty($r['is_active']) ? 'Evet' : 'Hayır' ?></td>
                 <td class="table-actions">

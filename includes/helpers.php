@@ -490,15 +490,20 @@ function cover_form_data_sources(): array
 
 function cover_form_fields(bool $activeOnly = true): array
 {
+    $where = $activeOnly ? ' WHERE is_active = 1' : '';
     try {
-        $sql = 'SELECT * FROM cover_form_fields';
-        if ($activeOnly) {
-            $sql .= ' WHERE is_active = 1';
-        }
-        $sql .= " ORDER BY FIELD(section,'header_left','header_right','checks_left','damage','checks_right','footer'), sort_order, id";
-        return db()->query($sql)->fetchAll();
+        return db()->query(
+            "SELECT * FROM cover_form_fields{$where}
+             ORDER BY FIELD(section,'header_left','header_right','checks_left','damage','checks_right','footer'), sort_order, id"
+        )->fetchAll();
     } catch (Throwable $e) {
-        return [];
+        try {
+            return db()->query(
+                "SELECT * FROM cover_form_fields{$where} ORDER BY sort_order, id"
+            )->fetchAll();
+        } catch (Throwable $e2) {
+            return [];
+        }
     }
 }
 
@@ -518,15 +523,115 @@ function cover_form_grouped(bool $activeOnly = true): array
     return $grouped;
 }
 
+function html_cover_form_check_options(?string $selected): string
+{
+    $selected = (string) $selected;
+    $html = '<option value="">— Bağlı değil —</option>';
+    $groups = cover_form_check_optgroups(false);
+    foreach ($groups as $group => $options) {
+        $html .= '<optgroup label="' . e((string) $group) . '">';
+        foreach ($options as $code => $label) {
+            $sel = $selected === (string) $code ? ' selected' : '';
+            $html .= '<option value="' . e((string) $code) . '"' . $sel . '>' . e((string) $label) . '</option>';
+        }
+        $html .= '</optgroup>';
+    }
+    return $html;
+}
+
+function html_category_map_options(array $selectedCodes): string
+{
+    $selected = [];
+    foreach ($selectedCodes as $code) {
+        $selected[(string) $code] = true;
+    }
+    $html = '';
+    foreach (all_category_options() as $code => $label) {
+        $sel = isset($selected[$code]) ? ' selected' : '';
+        $html .= '<option value="' . e((string) $code) . '"' . $sel . '>' . e((string) $label) . '</option>';
+    }
+    return $html;
+}
+
 function cover_form_check_options(bool $activeOnly = true): array
 {
     $out = [];
-    foreach (cover_form_fields($activeOnly) as $row) {
-        if (($row['kind'] ?? '') === 'check') {
-            $out[(string) $row['code']] = (string) $row['label'];
+    foreach (cover_form_check_optgroups($activeOnly) as $options) {
+        foreach ($options as $code => $label) {
+            $out[$code] = $label;
         }
     }
     return $out;
+}
+
+function cover_form_check_optgroups(bool $activeOnly = true): array
+{
+    $sections = cover_form_sections();
+    $groups = [];
+    foreach (cover_form_fields($activeOnly) as $row) {
+        if (($row['kind'] ?? '') !== 'check') {
+            continue;
+        }
+        $sec = (string) ($row['section'] ?? '');
+        $title = $sections[$sec] ?? ($sec !== '' ? $sec : 'Diğer');
+        $groups[$title][(string) $row['code']] = (string) $row['label'];
+    }
+    return $groups;
+}
+
+function all_category_options(): array
+{
+    try {
+        $rows = db()->query(
+            'SELECT code, label, is_active FROM app_categories ORDER BY sort_order, id'
+        )->fetchAll();
+        $out = [];
+        foreach ($rows as $row) {
+            $label = (string) $row['label'];
+            if (empty($row['is_active'])) {
+                $label .= ' (pasif)';
+            }
+            $out[(string) $row['code']] = $label;
+        }
+        return $out;
+    } catch (Throwable $e) {
+        return category_labels();
+    }
+}
+
+function posted_category_codes(): array
+{
+    $raw = $_POST['category_codes'] ?? [];
+    if (!is_array($raw)) {
+        $raw = $raw !== '' ? [$raw] : [];
+    }
+    $valid = all_category_options();
+    $codes = [];
+    foreach ($raw as $code) {
+        $code = trim((string) $code);
+        if ($code !== '' && isset($valid[$code])) {
+            $codes[] = $code;
+        }
+    }
+    return $codes;
+}
+
+function set_form_field_categories(PDO $pdo, string $formFieldCode, array $categoryCodes): void
+{
+    if (!schema_column_exists($pdo, 'app_categories', 'form_field_code')) {
+        return;
+    }
+    $pdo->prepare(
+        'UPDATE app_categories SET form_field_code = NULL WHERE form_field_code = ?'
+    )->execute([$formFieldCode]);
+    $upd = $pdo->prepare('UPDATE app_categories SET form_field_code = ? WHERE code = ?');
+    foreach ($categoryCodes as $code) {
+        $code = trim((string) $code);
+        if ($code === '') {
+            continue;
+        }
+        $upd->execute([$formFieldCode, $code]);
+    }
 }
 
 function cover_form_category_map(): array
