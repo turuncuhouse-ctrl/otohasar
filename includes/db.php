@@ -134,6 +134,9 @@ function ensure_schema_upgrades(PDO $pdo): void
     if (!schema_table_exists($pdo, 'prim_target_products') || !migration_applied($pdo, 'v20_prim_target_products')) {
         run_migration_script($scripts . 'migrate_v20.php');
     }
+    if (!schema_table_exists($pdo, 'app_announcements') || !migration_applied($pdo, 'v21_announcements')) {
+        run_migration_script($scripts . 'migrate_v21.php');
+    }
 }
 
 function db(): PDO

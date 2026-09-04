@@ -32,7 +32,31 @@ $canSearch = $currentUser && user_can($currentUser, 'hasar_search');
     <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
     <?php endif; ?>
 </head>
-<body>
+$body>
+<?php
+$announcements = ($currentUser && function_exists('active_announcements')) ? active_announcements() : [];
+?>
+<?php if ($currentUser && $announcements): ?>
+<div class="announce-bar" role="region" aria-label="Duyurular">
+    <div class="announce-track">
+        <?php
+        // Çift kopya — kesintisiz kayma
+        $loop = array_merge($announcements, $announcements);
+        foreach ($loop as $ann):
+            $text = (string) $ann['body'];
+            $href = trim((string) ($ann['link_url'] ?? ''));
+        ?>
+        <span class="announce-item">
+            <?php if ($href !== ''): ?>
+            <a href="<?= e($href) ?>" target="_blank" rel="noopener"><?= e($text) ?></a>
+            <?php else: ?>
+            <?= e($text) ?>
+            <?php endif; ?>
+        </span>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>
 <?php if ($currentUser): ?>
 <header class="topbar">
     <div class="topbar-inner">

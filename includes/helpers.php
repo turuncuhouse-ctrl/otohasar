@@ -784,6 +784,38 @@ function tour_slides(bool $activeOnly = true): array
     }
 }
 
+/** Şu an gösterilecek duyurular (aktif + süre içinde). */
+function active_announcements(): array
+{
+    try {
+        $stmt = db()->query(
+            "SELECT * FROM app_announcements
+             WHERE is_active = 1
+               AND (starts_at IS NULL OR starts_at <= NOW())
+               AND (ends_at IS NULL OR ends_at >= NOW())
+             ORDER BY sort_order, id DESC
+             LIMIT 10"
+        );
+        return $stmt->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function announcements_all(bool $activeOnly = false): array
+{
+    try {
+        $sql = 'SELECT * FROM app_announcements';
+        if ($activeOnly) {
+            $sql .= ' WHERE is_active = 1';
+        }
+        $sql .= ' ORDER BY sort_order, id DESC';
+        return db()->query($sql)->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
 function insurance_companies(bool $activeOnly = true): array
 {
     try {
