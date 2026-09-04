@@ -43,7 +43,7 @@ require __DIR__ . '/../../includes/header.php';
 <div class="admin-grid">
     <a class="admin-card" href="/admin/announcements.php">
         <h2>Duyurular</h2>
-        <p>Header’da kayan duyuru; düzenlenebilir ve süreli yayın</p>
+        <p>Header’da kayan duyuru; düzenlenebilir ve süreli yayın (Admin / Servis Müdürü)</p>
         <span class="admin-stat">Yönet</span>
     </a>
     <a class="admin-card" href="/admin/users.php">

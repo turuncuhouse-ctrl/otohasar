@@ -1,6 +1,6 @@
 <?php
 /**
- * v21: Sistem duyuruları (kayan yazı, süreli)
+ * v22: Demo duyuru seed (v21 tablosu varsa ve boşsa)
  */
 declare(strict_types=1);
 
@@ -13,7 +13,7 @@ $pdo = new PDO(
     [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
 );
 
-function v21_table_exists(PDO $pdo, string $table): bool
+function v22_table_exists(PDO $pdo, string $table): bool
 {
     $stmt = $pdo->prepare(
         'SELECT COUNT(*) FROM information_schema.TABLES
@@ -23,31 +23,22 @@ function v21_table_exists(PDO $pdo, string $table): bool
     return (int) $stmt->fetchColumn() > 0;
 }
 
-$pdo->exec(
-    "CREATE TABLE IF NOT EXISTS app_announcements (
-        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        body VARCHAR(500) NOT NULL,
-        link_url VARCHAR(255) NULL,
-        starts_at DATETIME NULL,
-        ends_at DATETIME NULL,
-        is_active TINYINT(1) NOT NULL DEFAULT 1,
-        sort_order INT NOT NULL DEFAULT 0,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-);
+if (!v22_table_exists($pdo, 'app_announcements')) {
+    echo "migrate_v22: app_announcements missing, skip\n";
+    exit(0);
+}
 
-// Demo duyuru (tablo boşsa)
 $count = (int) $pdo->query('SELECT COUNT(*) FROM app_announcements')->fetchColumn();
 if ($count === 0) {
     $pdo->prepare(
         'INSERT INTO app_announcements (body, link_url, starts_at, ends_at, sort_order, is_active)
          VALUES (?, NULL, NULL, NULL, 0, 1)'
     )->execute(['OTOHASAR demo duyuru — panelli kayan yazı örneği']);
+    echo "migrate_v22: demo announcement seeded\n";
+} else {
+    echo "migrate_v22: announcements already present, skip seed\n";
 }
 
-if (v21_table_exists($pdo, 'app_migrations')) {
-    $pdo->prepare('INSERT IGNORE INTO app_migrations (name) VALUES (?)')->execute(['v21_announcements']);
+if (v22_table_exists($pdo, 'app_migrations')) {
+    $pdo->prepare('INSERT IGNORE INTO app_migrations (name) VALUES (?)')->execute(['v22_announcement_demo']);
 }
-
-echo "migrate_v21: announcements OK\n";

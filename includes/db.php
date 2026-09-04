@@ -137,6 +137,9 @@ function ensure_schema_upgrades(PDO $pdo): void
     if (!schema_table_exists($pdo, 'app_announcements') || !migration_applied($pdo, 'v21_announcements')) {
         run_migration_script($scripts . 'migrate_v21.php');
     }
+    if (!migration_applied($pdo, 'v22_announcement_demo')) {
+        run_migration_script($scripts . 'migrate_v22.php');
+    }
 }
 
 function db(): PDO

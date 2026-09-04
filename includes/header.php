@@ -32,7 +32,7 @@ $canSearch = $currentUser && user_can($currentUser, 'hasar_search');
     <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
     <?php endif; ?>
 </head>
-$body>
+<body>
 <?php
 $announcements = ($currentUser && function_exists('active_announcements')) ? active_announcements() : [];
 ?>
