@@ -16,7 +16,7 @@ return [
         'timezone'      => 'Europe/Istanbul',
         'upload_max'    => 20 * 1024 * 1024, // 20MB
         'token_ttl'     => 30 * 24 * 3600,   // 30 days
-        'asset_version' => '43',
+        'asset_version' => '44',
     ],
     'paths' => [
         'uploads' => __DIR__ . '/../public/uploads',

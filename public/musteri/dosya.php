@@ -110,7 +110,7 @@ $pageTitle = $file['file_number'];
                         <label class="btn btn-primary btn-sm upload-picker-btn">
                             İmzalı yükle
                             <input type="file" class="upload-picker-input ins-signed-input"
-                                   accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+                                   accept="<?= e(upload_accept_documents()) ?>"
                                    data-category="<?= e($tpl['doc_type']) ?>">
                         </label>
                         <?php endif; ?>
@@ -141,7 +141,7 @@ $pageTitle = $file['file_number'];
                         'hasar_foto' => '📸', 'ekspertiz' => '🔍', 'diger' => '📁',
                         default => '📎'
                     };
-                    $accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif';
+                    $accept = upload_accept_documents();
                 ?>
                 <div class="category-card small" data-category="<?= e($key) ?>">
                     <span class="cat-icon"><?= $icon ?></span>
@@ -159,8 +159,8 @@ $pageTitle = $file['file_number'];
                     <input type="file" class="upload-picker-input" accept="image/*" capture="environment" data-source="camera">
                 </label>
                 <label class="btn btn-secondary btn-sm upload-picker-btn">
-                    🖼️ Galeriden çoklu seç
-                    <input type="file" class="upload-picker-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif" multiple data-source="gallery">
+                    🖼️ Galeri / dosya seç
+                    <input type="file" class="upload-picker-input" accept="<?= e(upload_accept_documents()) ?>" multiple data-source="gallery">
                 </label>
             </div>
             <div id="uploadPreview" class="upload-preview"></div>
@@ -176,11 +176,14 @@ $pageTitle = $file['file_number'];
         <div class="doc-grid" id="docGrid">
             <?php foreach ($documents as $doc): ?>
             <div class="doc-card">
-                <a href="/<?= e($doc['file_path']) ?>" target="_blank" class="doc-thumb">
-                    <?php if (str_starts_with((string)$doc['mime_type'], 'image/')): ?>
+                <a href="/<?= e($doc['file_path']) ?>" target="_blank" class="doc-thumb" download="<?= e($doc['original_name']) ?>">
+                    <?php
+                    $badge = document_type_badge((string) ($doc['mime_type'] ?? ''), (string) $doc['original_name']);
+                    if ($badge === ''):
+                    ?>
                     <img src="/<?= e($doc['file_path']) ?>" alt="<?= e($doc['original_name']) ?>" loading="lazy">
                     <?php else: ?>
-                    <span class="doc-file-badge">PDF</span>
+                    <span class="doc-file-badge doc-file-badge-<?= e(strtolower($badge)) ?>"><?= e($badge) ?></span>
                     <?php endif; ?>
                 </a>
                 <div class="doc-info">

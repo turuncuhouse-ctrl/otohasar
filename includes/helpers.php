@@ -1389,6 +1389,41 @@ function template_storage_dir(int $companyId): string
     return $dir;
 }
 
+/** Evrak yükleme accept attribute (görsel + PDF/Word/Excel). */
+function upload_accept_documents(): string
+{
+    return implode(',', [
+        'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif',
+        '.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif',
+        'application/pdf', '.pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.doc', '.docx',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        '.xls', '.xlsx',
+    ]);
+}
+
+function document_type_badge(?string $mime, string $originalName): string
+{
+    $mime = strtolower((string) $mime);
+    if (str_starts_with($mime, 'image/')) {
+        return '';
+    }
+    $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    if ($mime === 'application/pdf' || $ext === 'pdf') {
+        return 'PDF';
+    }
+    if (in_array($ext, ['doc', 'docx'], true) || str_contains($mime, 'word')) {
+        return 'WORD';
+    }
+    if (in_array($ext, ['xls', 'xlsx'], true) || str_contains($mime, 'excel') || str_contains($mime, 'spreadsheet')) {
+        return 'EXCEL';
+    }
+    return strtoupper($ext !== '' ? $ext : 'DOSYA');
+}
+
 function validate_document_mime(string $tmpPath, string $originalName): ?array
 {
     $image = validate_upload_mime($tmpPath, $originalName);
@@ -1397,13 +1432,50 @@ function validate_document_mime(string $tmpPath, string $originalName): ?array
     }
 
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime = finfo_file($finfo, $tmpPath) ?: '';
+    $mime = strtolower((string) (finfo_file($finfo, $tmpPath) ?: ''));
     finfo_close($finfo);
 
     $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-    if ($mime === 'application/pdf' || $ext === 'pdf') {
+    $head = @file_get_contents($tmpPath, false, null, 0, 8) ?: '';
+    $isPdf = str_starts_with($head, '%PDF') || $mime === 'application/pdf';
+    $isOle = strlen($head) >= 4 && $head[0] === "\xD0" && $head[1] === "\xCF" && $head[2] === "\x11" && $head[3] === "\xE0";
+    $isZip = strlen($head) >= 2 && $head[0] === 'P' && $head[1] === 'K';
+
+    if ($ext === 'pdf' && ($isPdf || $mime === 'application/octet-stream' || $mime === '')) {
         return ['mime' => 'application/pdf', 'ext' => 'pdf'];
     }
+    if ($isPdf && ($ext === 'pdf' || $ext === '')) {
+        return ['mime' => 'application/pdf', 'ext' => 'pdf'];
+    }
+
+    // Word
+    if ($ext === 'docx' && ($isZip || str_contains($mime, 'wordprocessingml') || $mime === 'application/zip' || $mime === 'application/octet-stream')) {
+        return ['mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'ext' => 'docx'];
+    }
+    if ($ext === 'doc' && ($isOle || $mime === 'application/msword' || $mime === 'application/octet-stream' || str_contains($mime, 'msword'))) {
+        return ['mime' => 'application/msword', 'ext' => 'doc'];
+    }
+    if (str_contains($mime, 'wordprocessingml')) {
+        return ['mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'ext' => $ext === 'doc' ? 'doc' : 'docx'];
+    }
+    if ($mime === 'application/msword') {
+        return ['mime' => 'application/msword', 'ext' => $ext === 'docx' ? 'docx' : 'doc'];
+    }
+
+    // Excel
+    if ($ext === 'xlsx' && ($isZip || str_contains($mime, 'spreadsheetml') || $mime === 'application/zip' || $mime === 'application/octet-stream')) {
+        return ['mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'ext' => 'xlsx'];
+    }
+    if ($ext === 'xls' && ($isOle || str_contains($mime, 'ms-excel') || $mime === 'application/vnd.ms-excel' || $mime === 'application/octet-stream')) {
+        return ['mime' => 'application/vnd.ms-excel', 'ext' => 'xls'];
+    }
+    if (str_contains($mime, 'spreadsheetml')) {
+        return ['mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'ext' => $ext === 'xls' ? 'xls' : 'xlsx'];
+    }
+    if ($mime === 'application/vnd.ms-excel' || str_contains($mime, 'ms-excel')) {
+        return ['mime' => 'application/vnd.ms-excel', 'ext' => $ext === 'xlsx' ? 'xlsx' : 'xls'];
+    }
+
     return null;
 }
 
@@ -1556,7 +1628,8 @@ function upload_validation_error(string $tmpPath, string $originalName): string
             . 'HEIC formatı desteklenmiyor. Galeriden JPEG/PNG seçin veya kamerayı JPEG moduna alın.';
     }
 
-    return ($originalName !== '' ? $originalName . ': ' : '') . 'Geçersiz dosya türü (JPEG, PNG, WebP)';
+    return ($originalName !== '' ? $originalName . ': ' : '')
+        . 'Geçersiz dosya türü (JPEG, PNG, WebP, PDF, Word, Excel)';
 }
 
 function upload_error_message(int $code, string $name): string

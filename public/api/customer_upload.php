@@ -72,13 +72,9 @@ foreach ($incoming as $item) {
         continue;
     }
 
-    $validated = $isTemplateCat
-        ? validate_document_mime($tmpPath, $origName)
-        : validate_upload_mime($tmpPath, $origName);
+    $validated = validate_document_mime($tmpPath, $origName);
     if (!$validated) {
-        $errors[] = $isTemplateCat
-            ? (($origName !== '' ? $origName . ': ' : '') . 'Geçersiz dosya (JPEG, PNG, WebP veya PDF)')
-            : upload_validation_error($tmpPath, $origName);
+        $errors[] = upload_validation_error($tmpPath, $origName);
         continue;
     }
 

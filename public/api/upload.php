@@ -69,7 +69,7 @@ foreach ($incoming as $item) {
         continue;
     }
 
-    $validated = validate_upload_mime($tmpPath, $origName);
+    $validated = validate_document_mime($tmpPath, $origName);
     if (!$validated) {
         $errors[] = upload_validation_error($tmpPath, $origName);
         continue;

@@ -229,7 +229,7 @@ require __DIR__ . '/../includes/header.php';
                     <span class="cat-desc"><?= e($categoryDescriptions[$key]) ?></span>
                     <?php endif; ?>
                     <input type="file" class="cat-input" multiple
-                           accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif">
+                           accept="<?= e(upload_accept_documents()) ?>">
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -240,11 +240,12 @@ require __DIR__ . '/../includes/header.php';
                     <input type="file" class="upload-picker-input" accept="image/*" capture="environment" data-source="camera">
                 </label>
                 <label class="btn btn-secondary btn-sm upload-picker-btn">
-                    🖼️ Galeriden çoklu seç
-                    <input type="file" class="upload-picker-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif" multiple data-source="gallery">
+                    🖼️ Galeri / dosya seç
+                    <input type="file" class="upload-picker-input" accept="<?= e(upload_accept_documents()) ?>" multiple data-source="gallery">
                 </label>
             </div>
             <?php endif; ?>
+            <p class="text-muted" style="margin:.5rem 0 0;font-size:.8125rem">Fotoğraf, PDF, Word (.doc/.docx) ve Excel (.xls/.xlsx) yüklenebilir (max 20MB).</p>
             <div id="uploadPreview" class="upload-preview"></div>
         </div>
         <?php endif; ?>
@@ -252,8 +253,15 @@ require __DIR__ . '/../includes/header.php';
         <div class="doc-grid" id="docGrid">
             <?php foreach ($documents as $doc): ?>
             <div class="doc-card" data-id="<?= (int)$doc['id'] ?>">
-                <a href="/<?= e($doc['file_path']) ?>" target="_blank" class="doc-thumb">
+                <a href="/<?= e($doc['file_path']) ?>" target="_blank" class="doc-thumb" download="<?= e($doc['original_name']) ?>">
+                    <?php
+                    $badge = document_type_badge((string) ($doc['mime_type'] ?? ''), (string) $doc['original_name']);
+                    if ($badge === ''):
+                    ?>
                     <img src="/<?= e($doc['file_path']) ?>" alt="<?= e($doc['original_name']) ?>" loading="lazy">
+                    <?php else: ?>
+                    <span class="doc-file-badge doc-file-badge-<?= e(strtolower($badge)) ?>"><?= e($badge) ?></span>
+                    <?php endif; ?>
                 </a>
                 <div class="doc-info">
                     <span class="doc-cat"><?= e(document_category_label((string)$doc['category'])) ?></span>

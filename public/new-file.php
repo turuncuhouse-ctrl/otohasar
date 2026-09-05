@@ -174,7 +174,7 @@ require __DIR__ . '/../includes/header.php';
                 <span class="cat-icon"><?= $icon ?></span>
                 <span class="cat-label"><?= e($label) ?></span>
                 <input type="file" class="cat-input" multiple
-                       accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif">
+                       accept="<?= e(upload_accept_documents()) ?>">
             </div>
             <?php endforeach; ?>
         </div>
@@ -184,13 +184,13 @@ require __DIR__ . '/../includes/header.php';
                 <input type="file" class="upload-picker-input" accept="image/*" capture="environment" data-source="camera">
             </label>
             <label class="btn btn-secondary btn-sm upload-picker-btn">
-                🖼️ Galeriden çoklu seç
-                <input type="file" class="upload-picker-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif" multiple data-source="gallery">
+                🖼️ Galeri / dosya seç
+                <input type="file" class="upload-picker-input" accept="<?= e(upload_accept_documents()) ?>" multiple data-source="gallery">
             </label>
         </div>
         <div class="dropzone" id="dropzone">
-            <p>Hasar fotoğrafı sürükleyip bırakın veya tıklayın (çoklu seçim)</p>
-            <input type="file" class="dropzone-input" id="dropInput" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif" multiple>
+            <p>Fotoğraf veya PDF/Word/Excel sürükleyip bırakın (çoklu seçim)</p>
+            <input type="file" class="dropzone-input" id="dropInput" accept="<?= e(upload_accept_documents()) ?>" multiple>
         </div>
         <div id="uploadPreview" class="upload-preview"></div>
         <a href="/dashboard.php" class="btn btn-primary btn-block btn-lg">Panoya Dön</a>
