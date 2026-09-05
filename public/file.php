@@ -222,30 +222,32 @@ require __DIR__ . '/../includes/header.php';
                         default => '📎'
                     };
                 ?>
-                <div class="category-card small" data-category="<?= e($key) ?>">
+                <div class="category-card small category-card-pick" data-category="<?= e($key) ?>" role="button" tabindex="0">
                     <span class="cat-icon"><?= $icon ?></span>
                     <span class="cat-label"><?= e($label) ?></span>
                     <?php if (!empty($categoryDescriptions[$key])): ?>
                     <span class="cat-desc"><?= e($categoryDescriptions[$key]) ?></span>
                     <?php endif; ?>
-                    <input type="file" class="cat-input" multiple
-                           accept="<?= e(upload_accept_documents()) ?>">
                 </div>
                 <?php endforeach; ?>
             </div>
             <?php if (in_array('hasar_foto', $permissions['allowed_categories'], true)): ?>
             <div class="upload-quick-actions" data-category="hasar_foto">
                 <label class="btn btn-secondary btn-sm upload-picker-btn">
-                    📷 Kamera ile çek
+                    📷 Kamera
                     <input type="file" class="upload-picker-input" accept="image/*" capture="environment" data-source="camera">
                 </label>
                 <label class="btn btn-secondary btn-sm upload-picker-btn">
-                    🖼️ Galeri / dosya seç
-                    <input type="file" class="upload-picker-input" accept="<?= e(upload_accept_documents()) ?>" multiple data-source="gallery">
+                    🖼️ Galeri
+                    <input type="file" class="upload-picker-input" accept="<?= e(upload_accept_images()) ?>" multiple data-source="gallery">
+                </label>
+                <label class="btn btn-secondary btn-sm upload-picker-btn">
+                    📄 PDF / Belge
+                    <input type="file" class="upload-picker-input" accept="<?= e(upload_accept_office()) ?>" multiple data-source="document">
                 </label>
             </div>
             <?php endif; ?>
-            <p class="text-muted" style="margin:.5rem 0 0;font-size:.8125rem">Fotoğraf, PDF, Word (.doc/.docx) ve Excel (.xls/.xlsx) yüklenebilir (max 20MB).</p>
+            <p class="text-muted upload-hint">Kategoriye tıklayın → Kamera, Galeri veya PDF/Word/Excel seçin. Örn. kasko poliçesi için ilgili kategori → <strong>PDF / Belge</strong>.</p>
             <div id="uploadPreview" class="upload-preview"></div>
         </div>
         <?php endif; ?>

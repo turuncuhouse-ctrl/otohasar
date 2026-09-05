@@ -1389,12 +1389,19 @@ function template_storage_dir(int $companyId): string
     return $dir;
 }
 
-/** Evrak yükleme accept attribute (görsel + PDF/Word/Excel). */
-function upload_accept_documents(): string
+/** Yalnızca görseller (kamera / galeri). */
+function upload_accept_images(): string
 {
     return implode(',', [
         'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif',
         '.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif',
+    ]);
+}
+
+/** PDF / Word / Excel (fotoğafsız belge). */
+function upload_accept_office(): string
+{
+    return implode(',', [
         'application/pdf', '.pdf',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -1403,6 +1410,12 @@ function upload_accept_documents(): string
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         '.xls', '.xlsx',
     ]);
+}
+
+/** Evrak yükleme accept attribute (görsel + PDF/Word/Excel). */
+function upload_accept_documents(): string
+{
+    return upload_accept_images() . ',' . upload_accept_office();
 }
 
 function document_type_badge(?string $mime, string $originalName): string

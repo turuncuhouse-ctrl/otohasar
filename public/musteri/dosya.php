@@ -143,26 +143,30 @@ $pageTitle = $file['file_number'];
                     };
                     $accept = upload_accept_documents();
                 ?>
-                <div class="category-card small" data-category="<?= e($key) ?>">
+                <div class="category-card small category-card-pick" data-category="<?= e($key) ?>" role="button" tabindex="0">
                     <span class="cat-icon"><?= $icon ?></span>
                     <span class="cat-label"><?= e($label) ?></span>
                     <?php if (!empty($categoryDescriptions[$key])): ?>
                     <span class="cat-desc"><?= e($categoryDescriptions[$key]) ?></span>
                     <?php endif; ?>
-                    <input type="file" class="cat-input" multiple accept="<?= e($accept) ?>">
                 </div>
                 <?php endforeach; ?>
             </div>
             <div class="upload-quick-actions" data-category="hasar_foto">
                 <label class="btn btn-secondary btn-sm upload-picker-btn">
-                    📷 Kamera ile çek
+                    📷 Kamera
                     <input type="file" class="upload-picker-input" accept="image/*" capture="environment" data-source="camera">
                 </label>
                 <label class="btn btn-secondary btn-sm upload-picker-btn">
-                    🖼️ Galeri / dosya seç
-                    <input type="file" class="upload-picker-input" accept="<?= e(upload_accept_documents()) ?>" multiple data-source="gallery">
+                    🖼️ Galeri
+                    <input type="file" class="upload-picker-input" accept="<?= e(upload_accept_images()) ?>" multiple data-source="gallery">
+                </label>
+                <label class="btn btn-secondary btn-sm upload-picker-btn">
+                    📄 PDF / Belge
+                    <input type="file" class="upload-picker-input" accept="<?= e(upload_accept_office()) ?>" multiple data-source="document">
                 </label>
             </div>
+            <p class="text-muted upload-hint">Kategoriye tıklayın → Kamera, Galeri veya PDF seçin.</p>
             <div id="uploadPreview" class="upload-preview"></div>
         </div>
         <?php else: ?>

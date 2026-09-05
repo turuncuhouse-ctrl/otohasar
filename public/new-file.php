@@ -170,28 +170,31 @@ require __DIR__ . '/../includes/header.php';
                     default => '📎'
                 };
             ?>
-            <div class="category-card" data-category="<?= e($key) ?>">
+            <div class="category-card category-card-pick" data-category="<?= e($key) ?>" role="button" tabindex="0">
                 <span class="cat-icon"><?= $icon ?></span>
                 <span class="cat-label"><?= e($label) ?></span>
-                <input type="file" class="cat-input" multiple
-                       accept="<?= e(upload_accept_documents()) ?>">
             </div>
             <?php endforeach; ?>
         </div>
         <div class="upload-quick-actions" data-category="hasar_foto">
             <label class="btn btn-secondary btn-sm upload-picker-btn">
-                📷 Kamera ile çek
+                📷 Kamera
                 <input type="file" class="upload-picker-input" accept="image/*" capture="environment" data-source="camera">
             </label>
             <label class="btn btn-secondary btn-sm upload-picker-btn">
-                🖼️ Galeri / dosya seç
-                <input type="file" class="upload-picker-input" accept="<?= e(upload_accept_documents()) ?>" multiple data-source="gallery">
+                🖼️ Galeri
+                <input type="file" class="upload-picker-input" accept="<?= e(upload_accept_images()) ?>" multiple data-source="gallery">
+            </label>
+            <label class="btn btn-secondary btn-sm upload-picker-btn">
+                📄 PDF / Belge
+                <input type="file" class="upload-picker-input" accept="<?= e(upload_accept_office()) ?>" multiple data-source="document">
             </label>
         </div>
         <div class="dropzone" id="dropzone">
             <p>Fotoğraf veya PDF/Word/Excel sürükleyip bırakın (çoklu seçim)</p>
             <input type="file" class="dropzone-input" id="dropInput" accept="<?= e(upload_accept_documents()) ?>" multiple>
         </div>
+        <p class="text-muted upload-hint">Kategoriye tıklayın → Kamera / Galeri / PDF seçin.</p>
         <div id="uploadPreview" class="upload-preview"></div>
         <a href="/dashboard.php" class="btn btn-primary btn-block btn-lg">Panoya Dön</a>
     </div>
