@@ -178,14 +178,16 @@ $pageTitle = $file['file_number'];
 
         <h3 class="portal-docs-title">Yüklenen evraklar</h3>
         <div class="doc-grid" id="docGrid">
-            <?php foreach ($documents as $doc): ?>
+            <?php foreach ($documents as $doc):
+                $badge = document_type_badge((string) ($doc['mime_type'] ?? ''), (string) $doc['original_name']);
+                $viewable = document_is_browser_viewable((string) ($doc['mime_type'] ?? ''), (string) $doc['original_name']);
+                $viewUrl = document_view_url((int) $doc['id']);
+                $dlUrl = document_view_url((int) $doc['id'], true);
+            ?>
             <div class="doc-card">
-                <a href="/<?= e($doc['file_path']) ?>" target="_blank" class="doc-thumb" download="<?= e($doc['original_name']) ?>">
-                    <?php
-                    $badge = document_type_badge((string) ($doc['mime_type'] ?? ''), (string) $doc['original_name']);
-                    if ($badge === ''):
-                    ?>
-                    <img src="/<?= e($doc['file_path']) ?>" alt="<?= e($doc['original_name']) ?>" loading="lazy">
+                <a href="<?= e($viewUrl) ?>" target="_blank" rel="noopener" class="doc-thumb"<?= $viewable ? '' : ' download="' . e($doc['original_name']) . '"' ?>>
+                    <?php if ($badge === ''): ?>
+                    <img src="<?= e($viewUrl) ?>" alt="<?= e($doc['original_name']) ?>" loading="lazy">
                     <?php else: ?>
                     <span class="doc-file-badge doc-file-badge-<?= e(strtolower($badge)) ?>"><?= e($badge) ?></span>
                     <?php endif; ?>
@@ -194,6 +196,11 @@ $pageTitle = $file['file_number'];
                     <span class="doc-cat"><?= e(document_category_label((string)$doc['category'])) ?></span>
                     <span class="doc-name"><?= e($doc['original_name']) ?></span>
                     <span class="doc-meta"><?= e($doc['uploader_name']) ?> · <?= date('d.m.Y H:i', strtotime($doc['uploaded_at'])) ?></span>
+                    <?php if ($viewable): ?>
+                    <a class="doc-open-link" href="<?= e($viewUrl) ?>" target="_blank" rel="noopener">Tarayıcıda aç</a>
+                    <?php else: ?>
+                    <a class="doc-open-link" href="<?= e($dlUrl) ?>">İndir</a>
+                    <?php endif; ?>
                 </div>
             </div>
             <?php endforeach; ?>

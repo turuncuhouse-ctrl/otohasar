@@ -1437,6 +1437,22 @@ function document_type_badge(?string $mime, string $originalName): string
     return strtoupper($ext !== '' ? $ext : 'DOSYA');
 }
 
+/** Tarayıcıda açılabilen evrak mı (PDF / görsel)? */
+function document_is_browser_viewable(?string $mime, string $originalName): bool
+{
+    $badge = document_type_badge($mime, $originalName);
+    return $badge === '' || $badge === 'PDF';
+}
+
+function document_view_url(int $docId, bool $download = false): string
+{
+    $url = '/api/view_doc.php?id=' . $docId;
+    if ($download) {
+        $url .= '&download=1';
+    }
+    return $url;
+}
+
 function validate_document_mime(string $tmpPath, string $originalName): ?array
 {
     $image = validate_upload_mime($tmpPath, $originalName);
