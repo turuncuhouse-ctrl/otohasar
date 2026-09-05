@@ -17,8 +17,7 @@ if ($docId <= 0) {
 
 $pdo = db();
 $stmt = $pdo->prepare(
-    'SELECT fd.*, df.id AS damage_file_id, df.advisor_id, df.advisor_id_2,
-            v.plate
+    'SELECT fd.*, df.id AS damage_file_id, df.advisor_id, v.plate
      FROM file_documents fd
      JOIN damage_files df ON df.id = fd.damage_file_id
      JOIN vehicles v ON v.id = df.vehicle_id
